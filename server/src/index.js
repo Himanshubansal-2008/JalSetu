@@ -7,13 +7,17 @@ const cors = require('cors');
 const app = express();
 
 app.use(cors());
-
 app.use(express.json({ limit: '5mb' }));
 
+// Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ ok: true });
 });
 
+// Auth routes
+app.use('/api/auth', require('./routes/authRoutes'));
+
+// 404 handler for unmatched routes
 app.use((req, res, next) => {
   res.status(404).json({ error: 'Route not found' });
 });
