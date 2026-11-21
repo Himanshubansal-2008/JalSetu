@@ -21,6 +21,17 @@ const authenticate = (req, res, next) => {
   }
 };
 
+// Middleware to enforce role-based access control
+const requireRole = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'Not allowed' });
+    }
+    next();
+  };
+};
+
 module.exports = {
   authenticate,
+  requireRole,
 };
