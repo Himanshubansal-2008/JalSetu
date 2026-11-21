@@ -1,6 +1,11 @@
 const express = require('express');
 const { authenticate } = require('../middleware/authMiddleware');
-const { createAsset, listAssets, getAsset } = require('../controllers/assetController');
+const {
+  createAsset,
+  listAssets,
+  getAsset,
+  updateAsset,
+} = require('../controllers/assetController');
 
 const router = express.Router();
 
@@ -8,5 +13,6 @@ const router = express.Router();
 router.post('/', authenticate, createAsset);
 router.get('/', authenticate, listAssets);
 router.get('/:id', authenticate, getAsset);
+router.patch('/:id', authenticate, updateAsset);
 
 module.exports = router;

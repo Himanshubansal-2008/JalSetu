@@ -69,7 +69,7 @@ function sanitizeAttributes(type, raw) {
   return Object.keys(result).length > 0 ? result : null;
 }
 
-// Helper to validate and convert date strings
+// Helper to validate and convert date strings for create (defaults undefined/null to null)
 const dateSchema = (fieldName, rejectFuture = false) =>
   z
     .string({ invalid_type_error: 'Invalid ' + fieldName })
@@ -96,6 +96,37 @@ const dateSchema = (fieldName, rejectFuture = false) =>
     })
     .transform((val) => {
       if (!val) return null;
+      return new Date(val);
+    });
+
+// Helper to validate and convert date strings for update (preserves undefined if not passed)
+const updateDateSchema = (fieldName, rejectFuture = false) =>
+  z
+    .string({ invalid_type_error: 'Invalid ' + fieldName })
+    .nullable()
+    .optional()
+    .superRefine((val, ctx) => {
+      if (val === undefined || val === null) return;
+      if (typeof val !== 'string' || val.trim() === '') {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Invalid ' + fieldName });
+        return;
+      }
+      const d = new Date(val);
+      if (isNaN(d.getTime())) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Invalid ' + fieldName });
+        return;
+      }
+      if (rejectFuture && d.getTime() > Date.now()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: fieldName + ' cannot be in the future',
+        });
+        return;
+      }
+    })
+    .transform((val) => {
+      if (val === undefined) return undefined;
+      if (val === null || val === '') return null;
       return new Date(val);
     });
 
@@ -171,6 +202,97 @@ const createAssetSchema = z
     attributes: sanitizeAttributes(data.type, data.attributes),
   }));
 
+// Schema for updating an asset (partial update)
+const updateAssetSchema = z
+  .object({
+    name: z
+      .string({ invalid_type_error: 'Name must be a string' })
+      .trim()
+      .min(2, 'Name must be at least 2 characters')
+      .max(100, 'Name must be at most 100 characters')
+      .optional(),
+    type: z.string({ invalid_type_error: 'Invalid asset type' }).optional(),
+    status: z
+      .enum(ASSET_STATUSES, {
+        errorMap: () => ({ message: 'Invalid asset status' }),
+      })
+      .optional(),
+    lat: z
+      .number({ invalid_type_error: 'Latitude must be a number' })
+      .min(-90, 'Latitude must be between -90 and 90')
+      .max(90, 'Latitude must be between -90 and 90')
+      .nullable()
+      .optional(),
+    lng: z
+      .number({ invalid_type_error: 'Longitude must be a number' })
+      .min(-180, 'Longitude must be between -180 and 180')
+      .max(180, 'Longitude must be between -180 and 180')
+      .nullable()
+      .optional(),
+    installDate: updateDateSchema('install date', true),
+    warrantyExpiry: updateDateSchema('warranty expiry date', false),
+    cost: z
+      .number({ invalid_type_error: 'Cost must be a number' })
+      .int('Cost must be a whole number')
+      .min(0, 'Cost cannot be negative')
+      .nullable()
+      .optional(),
+    notes: z
+      .string({ invalid_type_error: 'Notes must be a string' })
+      .trim()
+      .max(1000, 'Notes must be at most 1000 characters')
+      .nullable()
+      .optional(),
+    attributes: z
+      .record(
+        z.string(),
+        z.union([
+          z.string().max(100, 'Attribute value cannot exceed 100 characters'),
+          z.number(),
+        ])
+      )
+      .nullable()
+      .optional(),
+    statusNote: z
+      .string({ invalid_type_error: 'Status note must be a string' })
+      .trim()
+      .max(300, 'Status note must be at most 300 characters')
+      .optional(),
+  })
+  .superRefine((data, ctx) => {
+    // If either lat or lng is present, both must be present
+    const hasLat = data.lat !== undefined;
+    const hasLng = data.lng !== undefined;
+    if ((hasLat && !hasLng) || (!hasLat && hasLng)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Latitude and longitude must be given together',
+      });
+    }
+
+    // Require at least one updatable field
+    const updatableKeys = [
+      'name',
+      'type',
+      'status',
+      'lat',
+      'lng',
+      'installDate',
+      'warrantyExpiry',
+      'cost',
+      'notes',
+      'attributes',
+      'statusNote',
+    ];
+    const hasAnyField = updatableKeys.some((k) => data[k] !== undefined);
+    if (!hasAnyField) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'No changes provided',
+      });
+    }
+  });
+
 // Schema for querying/listing assets
 const listAssetsQuerySchema = z.object({
   type: z.preprocess(
@@ -202,5 +324,6 @@ module.exports = {
   ASSET_STATUSES,
   sanitizeAttributes,
   createAssetSchema,
+  updateAssetSchema,
   listAssetsQuerySchema,
 };

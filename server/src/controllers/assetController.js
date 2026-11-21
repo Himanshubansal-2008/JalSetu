@@ -1,9 +1,31 @@
 const { z } = require('zod');
 const prisma = require('../prisma');
-const { createAssetSchema, listAssetsQuerySchema } = require('../utils/assetUtil');
+const {
+  createAssetSchema,
+  updateAssetSchema,
+  listAssetsQuerySchema,
+  sanitizeAttributes,
+} = require('../utils/assetUtil');
 
 // Validation schema for UUID route params
 const idParamSchema = z.string().uuid();
+
+// Reusable select fields for Asset (excluding photo)
+const assetSelectWithoutPhoto = {
+  id: true,
+  gpId: true,
+  name: true,
+  type: true,
+  status: true,
+  lat: true,
+  lng: true,
+  installDate: true,
+  cost: true,
+  warrantyExpiry: true,
+  attributes: true,
+  notes: true,
+  createdAt: true,
+};
 
 // Create a new asset
 async function createAsset(req, res, next) {
@@ -53,27 +75,11 @@ async function listAssets(req, res, next) {
       };
     }
 
-    // Explicit select excluding photo for a lighter response
-    const select = {
-      id: true,
-      name: true,
-      type: true,
-      status: true,
-      lat: true,
-      lng: true,
-      installDate: true,
-      cost: true,
-      warrantyExpiry: true,
-      attributes: true,
-      notes: true,
-      createdAt: true,
-    };
-
     // 3. Query assets and total count in transaction
     const [assets, total] = await prisma.$transaction([
       prisma.asset.findMany({
         where,
-        select,
+        select: assetSelectWithoutPhoto,
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
@@ -141,8 +147,102 @@ async function getAsset(req, res, next) {
   }
 }
 
+// Update an existing asset and record status change history if status changes
+async function updateAsset(req, res, next) {
+  try {
+    // 1. Validate id as UUID
+    const parsedId = idParamSchema.safeParse(req.params.id);
+    if (!parsedId.success) {
+      return res.status(400).json({ error: 'Invalid asset id' });
+    }
+
+    const { id } = req.params;
+
+    // 2. Validate request body
+    const parsed = updateAssetSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0].message });
+    }
+
+    // 3. Load existing asset belonging to user's GP
+    const existingAsset = await prisma.asset.findFirst({
+      where: {
+        id,
+        gpId: req.user.gpId,
+      },
+    });
+
+    if (!existingAsset) {
+      return res.status(404).json({ error: 'Asset not found' });
+    }
+
+    // 4. Type rule: if type is included and differs, reject
+    if (parsed.data.type !== undefined && parsed.data.type !== existingAsset.type) {
+      return res.status(400).json({ error: 'Asset type cannot be changed' });
+    }
+
+    // 5. Build update data from present fields only
+    const updateData = {};
+    if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
+    if (parsed.data.status !== undefined) updateData.status = parsed.data.status;
+    if (parsed.data.lat !== undefined) updateData.lat = parsed.data.lat;
+    if (parsed.data.lng !== undefined) updateData.lng = parsed.data.lng;
+    if (parsed.data.installDate !== undefined) updateData.installDate = parsed.data.installDate;
+    if (parsed.data.warrantyExpiry !== undefined) updateData.warrantyExpiry = parsed.data.warrantyExpiry;
+    if (parsed.data.cost !== undefined) updateData.cost = parsed.data.cost;
+    if (parsed.data.notes !== undefined) updateData.notes = parsed.data.notes;
+
+    if (parsed.data.attributes !== undefined) {
+      if (parsed.data.attributes === null) {
+        updateData.attributes = null;
+      } else {
+        updateData.attributes = sanitizeAttributes(existingAsset.type, parsed.data.attributes);
+      }
+    }
+
+    // 6. Check if status actually changed
+    const statusChanged =
+      parsed.data.status !== undefined && parsed.data.status !== existingAsset.status;
+
+    let eventNote = null;
+    if (statusChanged) {
+      eventNote = `Status changed from ${existingAsset.status} to ${parsed.data.status}`;
+      if (parsed.data.statusNote) {
+        eventNote += `: ${parsed.data.statusNote}`;
+      }
+    }
+
+    // 7. Execute update and optional history entry in a single transaction
+    const [updatedAsset] = await prisma.$transaction(async (tx) => {
+      const asset = await tx.asset.update({
+        where: { id: existingAsset.id },
+        data: updateData,
+        select: assetSelectWithoutPhoto,
+      });
+
+      if (statusChanged) {
+        await tx.assetEvent.create({
+          data: {
+            assetId: existingAsset.id,
+            createdById: req.user.id,
+            kind: 'STATUS_CHANGE',
+            note: eventNote,
+          },
+        });
+      }
+
+      return [asset];
+    });
+
+    return res.status(200).json({ asset: updatedAsset });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   createAsset,
   listAssets,
   getAsset,
+  updateAsset,
 };
