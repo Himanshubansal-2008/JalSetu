@@ -1,5 +1,9 @@
+const { z } = require('zod');
 const prisma = require('../prisma');
 const { createAssetSchema, listAssetsQuerySchema } = require('../utils/assetUtil');
+
+// Validation schema for UUID route params
+const idParamSchema = z.string().uuid();
 
 // Create a new asset
 async function createAsset(req, res, next) {
@@ -88,7 +92,57 @@ async function listAssets(req, res, next) {
   }
 }
 
+// Get a single asset with history events
+async function getAsset(req, res, next) {
+  try {
+    // 1. Validate id as UUID
+    const parsed = idParamSchema.safeParse(req.params.id);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Invalid asset id' });
+    }
+
+    const { id } = req.params;
+
+    // 2. Fetch asset belonging to authenticated user's Gram Panchayat
+    const asset = await prisma.asset.findFirst({
+      where: {
+        id,
+        gpId: req.user.gpId,
+      },
+      include: {
+        events: {
+          select: {
+            id: true,
+            kind: true,
+            note: true,
+            createdAt: true,
+            createdBy: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        },
+      },
+    });
+
+    // 3. Return 404 if not found or belongs to another GP
+    if (!asset) {
+      return res.status(404).json({ error: 'Asset not found' });
+    }
+
+    // 4. Return asset including events history
+    return res.status(200).json({ asset });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   createAsset,
   listAssets,
+  getAsset,
 };
