@@ -1,0 +1,31 @@
+// Load environment variables at the very top
+require('dotenv').config();
+
+const express = require('express');
+const cors = require('cors');
+
+const app = express();
+
+app.use(cors());
+
+app.use(express.json({ limit: '5mb' }));
+
+app.get('/health', (req, res) => {
+  res.json({ ok: true });
+});
+
+app.use((req, res, next) => {
+  res.status(404).json({ error: 'Route not found' });
+});
+
+// Central error handler
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({ error: 'Something went wrong' });
+});
+
+// Listen on configured port or default to 4000
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+  console.log(`API running on ${PORT}`);
+});
