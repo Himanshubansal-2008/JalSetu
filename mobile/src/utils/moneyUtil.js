@@ -39,3 +39,23 @@ export function paiseToRupees(paise) {
 
   return `${whole}.${String(remainder).padStart(2, '0')}`;
 }
+
+export function formatRupees(paise) {
+  if (paise === null || paise === undefined || paise === '') return '';
+  const num = Number(paise);
+  if (isNaN(num)) return '';
+
+  const whole = Math.floor(num / 100);
+  const remainder = num % 100;
+
+  let wholeStr = String(whole);
+  if (whole >= 1000) {
+    const lastThree = wholeStr.slice(-3);
+    const otherNumbers = wholeStr.slice(0, -3);
+    const formattedOthers = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
+    wholeStr = `${formattedOthers},${lastThree}`;
+  }
+
+  const decStr = remainder > 0 ? `.${String(remainder).padStart(2, '0')}` : '';
+  return `₹${wholeStr}${decStr}`;
+}

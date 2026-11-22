@@ -120,3 +120,31 @@ export function formatAssetCount(count) {
   }
   return strings.assetCountPlural.replace('{count}', (count || 0).toLocaleString());
 }
+
+export function eventKindLabelKey(kind) {
+  switch (kind) {
+    case 'STATUS_CHANGE':
+      return 'eventStatusChange';
+    case 'REPAIR':
+      return 'eventRepair';
+    case 'INSPECTION':
+      return 'eventInspection';
+    case 'NOTE':
+      return 'eventNote';
+    default:
+      return 'eventUpdate';
+  }
+}
+
+export function eventKindTone(kind) {
+  switch (kind) {
+    case 'STATUS_CHANGE':
+      return 'warning';
+    case 'REPAIR':
+      return 'danger';
+    case 'INSPECTION':
+    case 'NOTE':
+    default:
+      return 'neutral';
+  }
+}

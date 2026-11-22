@@ -73,6 +73,7 @@ export const strings = {
   unitHp: 'HP',
   unitLiter: 'L',
   unitMeter: 'm',
+  unitMm: 'mm',
   unitLpd: 'L/day',
 
   // Asset Navigation & Headers
@@ -164,4 +165,37 @@ export const strings = {
   discardChangesMessage: 'You have unsaved changes. Are you sure you want to discard them?',
   keepEditing: 'Keep editing',
   discard: 'Discard',
+
+  // Detail Screen Sections & Details
+  detailsSection: 'Details',
+  specificationsSection: 'Specifications',
+  notesSection: 'Notes',
+  historySection: 'History',
+  historyCountTitle: 'History ({count})',
+  addedOnLabel: 'Added on',
+  locationLabel: 'Location',
+  expiredBadge: 'Expired',
+  emDash: '—',
+
+  // History Section
+  noHistoryYet: 'No history yet',
+  showingLatest50Entries: 'Showing the latest 50 entries',
+  historyMeta: 'by {name} · {date}',
+  unknownUser: 'Unknown',
+
+  // Event Kind Labels
+  eventStatusChange: 'Status change',
+  eventRepair: 'Repair',
+  eventInspection: 'Inspection',
+  eventNote: 'Note',
+  eventUpdate: 'Update',
+
+  // Delete Flow
+  delete: 'Delete',
+  cancel: 'Cancel',
+  ok: 'OK',
+  deleteAssetConfirmTitle: 'Delete asset?',
+  deleteAssetConfirmMessage:
+    'Are you sure you want to delete "{name}"? This cannot be undone and the history will be deleted too.',
+  onlyAdminCanDelete: 'Only an admin can delete assets',
 };
