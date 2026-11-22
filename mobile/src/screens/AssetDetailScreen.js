@@ -1,10 +1,10 @@
 // TODO: Replace this temporary stub with the real asset detail screen in a later step.
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { strings } from '../strings';
-import { colors, spacing } from '../theme';
+import { colors, spacing, radius } from '../theme';
 
-export default function AssetDetailScreen({ route }) {
+export default function AssetDetailScreen({ route, navigation }) {
   const id = route?.params?.id;
   const name = route?.params?.name;
 
@@ -15,6 +15,17 @@ export default function AssetDetailScreen({ route }) {
         <Text style={styles.params}>
           {id} {name ? `• ${name}` : ''}
         </Text>
+      ) : null}
+
+      {id ? (
+        <TouchableOpacity
+          style={styles.editButton}
+          onPress={() => navigation.navigate('AssetForm', { id })}
+          accessibilityRole="button"
+          accessibilityLabel={strings.edit}
+        >
+          <Text style={styles.editButtonText}>{strings.edit}</Text>
+        </TouchableOpacity>
       ) : null}
     </View>
   );
@@ -37,5 +48,20 @@ const styles = StyleSheet.create({
   params: {
     fontSize: 14,
     color: colors.muted,
+    marginBottom: spacing.lg,
+  },
+  editButton: {
+    minHeight: 44,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm + 2,
+    backgroundColor: colors.primary,
+    borderRadius: radius.sm + 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editButtonText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

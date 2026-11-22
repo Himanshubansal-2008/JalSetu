@@ -8,6 +8,7 @@ export const colors = {
   border: '#D1D5DB',
   pressed: '#EEF2F6',
   shadow: '#000000',
+  overlay: 'rgba(0, 0, 0, 0.4)',
 };
 
 export const tones = {
