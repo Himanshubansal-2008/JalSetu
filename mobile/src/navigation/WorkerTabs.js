@@ -2,6 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
+import AssetsStack from './AssetsStack';
 import { strings } from '../strings';
 import { colors } from '../theme';
 
@@ -28,7 +29,11 @@ export default function WorkerTabs() {
       })}
     >
       <Tab.Screen name={strings.home} component={PlaceholderScreen} />
-      <Tab.Screen name={strings.assets} component={PlaceholderScreen} />
+      <Tab.Screen
+        name={strings.assets}
+        component={AssetsStack}
+        options={{ headerShown: false }}
+      />
       <Tab.Screen name={strings.inventory} component={PlaceholderScreen} />
     </Tab.Navigator>
   );

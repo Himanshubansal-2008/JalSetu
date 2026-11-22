@@ -9,6 +9,9 @@ export const strings = {
   comingSoon: 'Coming soon',
   loggedInAs: 'Logged in as:',
   role: 'Role:',
+  orTryDemo: 'Or explore with demo account',
+  demoAdminLogin: 'Demo Admin',
+  demoWorkerLogin: 'Demo Worker',
 
   // Navigation Links
   dontHaveAccount: "Don't have an account? Sign up",
@@ -51,4 +54,47 @@ export const strings = {
   networkError:
     'Could not connect to the server. Please check that the backend is running and your device is on the same Wi-Fi network, then try again.',
   genericError: 'Something went wrong. Please try again.',
+
+  // Asset Types
+  assetTypeSource: 'Source',
+  assetTypePump: 'Pump',
+  assetTypePipeline: 'Pipeline',
+  assetTypeValve: 'Valve',
+  assetTypeTank: 'Tank',
+  assetTypeTreatmentPlant: 'Treatment plant',
+  assetTypeStandpost: 'Standpost',
+
+  // Asset Statuses
+  assetStatusWorking: 'Working',
+  assetStatusFaulty: 'Faulty',
+  assetStatusUnderRepair: 'Under repair',
+
+  // Asset Units
+  unitHp: 'HP',
+  unitLiter: 'L',
+  unitMeter: 'm',
+  unitLpd: 'L/day',
+
+  // Asset Navigation & Headers
+  assetsTitle: 'Assets',
+  addAsset: 'Add asset',
+  add: '+ Add',
+  assetFormTitle: 'New Asset',
+  assetDetailTitle: 'Asset Details',
+
+  // Asset List Search, Filters & Pagination
+  searchAssetsPlaceholder: 'Search assets by name...',
+  clearSearch: 'Clear search',
+  clearFilters: 'Clear filters',
+  retry: 'Retry',
+  loadMore: 'Load more',
+  dismiss: 'Dismiss',
+
+  // Result counts
+  assetCountSingular: '1 asset',
+  assetCountPlural: '{count} assets',
+
+  // Empty & Error states
+  noAssetsYet: 'No assets yet',
+  noAssetsMatch: 'No assets match your filters',
 };
