@@ -240,9 +240,60 @@ async function updateAsset(req, res, next) {
   }
 }
 
+// Delete an asset (admin only, blocks if linked ledger or stock usage exists)
+async function deleteAsset(req, res, next) {
+  try {
+    // 1. Validate id as UUID
+    const parsedId = idParamSchema.safeParse(req.params.id);
+    if (!parsedId.success) {
+      return res.status(400).json({ error: 'Invalid asset id' });
+    }
+
+    const { id } = req.params;
+
+    // 2. Find asset scoped to user's GP
+    const asset = await prisma.asset.findFirst({
+      where: {
+        id,
+        gpId: req.user.gpId,
+      },
+    });
+
+    if (!asset) {
+      return res.status(404).json({ error: 'Asset not found' });
+    }
+
+    // 3. Safety check: count linked financial ledger entries and stock transactions
+    const [ledgerCount, stockCount] = await Promise.all([
+      prisma.ledgerEntry.count({ where: { assetId: id } }),
+      prisma.stockTxn.count({ where: { assetId: id } }),
+    ]);
+
+    if (ledgerCount > 0 || stockCount > 0) {
+      return res.status(409).json({
+        error:
+          'This asset has linked expenses or stock usage and cannot be deleted. Change its status instead.',
+      });
+    }
+
+    // 4. Delete asset scoped by gpId (history events cascade delete)
+    await prisma.asset.deleteMany({
+      where: {
+        id,
+        gpId: req.user.gpId,
+      },
+    });
+
+    return res.status(200).json({ message: 'Asset deleted' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   createAsset,
   listAssets,
   getAsset,
   updateAsset,
+  deleteAsset,
 };
