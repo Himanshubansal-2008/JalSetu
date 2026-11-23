@@ -198,4 +198,18 @@ export const strings = {
   deleteAssetConfirmMessage:
     'Are you sure you want to delete "{name}"? This cannot be undone and the history will be deleted too.',
   onlyAdminCanDelete: 'Only an admin can delete assets',
+
+  // Location
+  useMyLocation: 'Use my location',
+  gettingLocation: 'Getting location...',
+  locationPermissionTitle: 'Location Permission Needed',
+  locationPermissionMessage:
+    'Location permission is needed to automatically fill coordinates for this asset. You can enable it in settings or enter coordinates manually.',
+  openSettings: 'Open Settings',
+  locationServicesDisabledTitle: 'Location Services Disabled',
+  locationServicesDisabledMessage:
+    'Location services are turned off on your device. Please enable location services in settings, or enter coordinates manually.',
+  locationErrorTitle: 'Location Error',
+  locationErrorMessage:
+    'Unable to acquire current location. Please check your GPS signal or enter coordinates manually.',
 };

@@ -15,7 +15,11 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
+  TouchableOpacity,
+  Linking,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import apiClient, { getErrorMessage } from '../api/apiClient';
 import { useAuthStore } from '../store/authStore';
 import FormField from '../components/FormField';
@@ -72,6 +76,7 @@ export default function AssetFormScreen({ route, navigation }) {
   // UI & Loading states
   const [loadingAsset, setLoadingAsset] = useState(isEdit);
   const [submitting, setSubmitting] = useState(false);
+  const [gettingLocation, setGettingLocation] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [notFound, setNotFound] = useState(false);
 
@@ -170,6 +175,77 @@ export default function AssetFormScreen({ route, navigation }) {
         delete next[field];
         return next;
       });
+    }
+  };
+
+  const updateCoords = (latStr, lngStr) => {
+    setForm((prev) => ({ ...prev, lat: latStr, lng: lngStr }));
+    setSubmitError('');
+    setInfoMessage('');
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.lat;
+      delete next.lng;
+      return next;
+    });
+  };
+
+  const handleUseMyLocation = async () => {
+    if (gettingLocation) return;
+    setGettingLocation(true);
+
+    try {
+      // 1. Check if device location services are enabled
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!servicesEnabled) {
+        Alert.alert(
+          strings.locationServicesDisabledTitle,
+          strings.locationServicesDisabledMessage,
+          [{ text: strings.ok }]
+        );
+        return;
+      }
+
+      // 2. Request foreground location permission
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          strings.locationPermissionTitle,
+          strings.locationPermissionMessage,
+          [
+            { text: strings.cancel, style: 'cancel' },
+            {
+              text: strings.openSettings,
+              onPress: () => {
+                Linking.openSettings().catch(() => {});
+              },
+            },
+          ]
+        );
+        return;
+      }
+
+      // 3. Fetch current GPS position with high accuracy
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+
+      if (location?.coords) {
+        const { latitude, longitude } = location.coords;
+        const latStr = latitude.toFixed(6);
+        const lngStr = longitude.toFixed(6);
+        updateCoords(latStr, lngStr);
+      } else {
+        throw new Error('No coordinates returned');
+      }
+    } catch (err) {
+      Alert.alert(
+        strings.locationErrorTitle,
+        strings.locationErrorMessage,
+        [{ text: strings.ok }]
+      );
+    } finally {
+      setGettingLocation(false);
     }
   };
 
@@ -396,6 +472,50 @@ export default function AssetFormScreen({ route, navigation }) {
 
         {/* 6. Location: Latitude and Longitude */}
         <View style={styles.locationContainer}>
+          <TouchableOpacity
+            style={[
+              styles.useLocationButton,
+              gettingLocation ? styles.useLocationButtonDisabled : null,
+            ]}
+            onPress={handleUseMyLocation}
+            disabled={gettingLocation}
+            accessibilityRole="button"
+            accessibilityLabel={
+              gettingLocation
+                ? strings.gettingLocation
+                : strings.useMyLocation
+            }
+            accessibilityState={{
+              disabled: gettingLocation,
+              busy: gettingLocation,
+            }}
+            activeOpacity={0.7}
+          >
+            {gettingLocation ? (
+              <>
+                <ActivityIndicator
+                  size="small"
+                  color={colors.primary}
+                  style={styles.useLocationSpinner}
+                />
+                <Text style={styles.useLocationButtonText}>
+                  {strings.gettingLocation}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Ionicons
+                  name="location-outline"
+                  size={18}
+                  color={colors.primary}
+                />
+                <Text style={styles.useLocationButtonText}>
+                  {strings.useMyLocation}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+
           <View style={styles.coordsRow}>
             <View style={styles.coordField}>
               <FormField
@@ -541,6 +661,32 @@ const styles = StyleSheet.create({
   },
   locationContainer: {
     marginBottom: spacing.lg,
+  },
+  useLocationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.sm + 2,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.white,
+    marginBottom: spacing.sm,
+  },
+  useLocationButtonDisabled: {
+    opacity: 0.6,
+    borderColor: colors.border,
+  },
+  useLocationButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+    marginLeft: spacing.xs,
+  },
+  useLocationSpinner: {
+    marginRight: spacing.xs,
   },
   coordsRow: {
     flexDirection: 'row',
