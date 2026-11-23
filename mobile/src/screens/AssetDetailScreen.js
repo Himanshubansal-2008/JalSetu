@@ -14,6 +14,7 @@ import {
   Alert,
   StyleSheet,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -77,6 +78,7 @@ export default function AssetDetailScreen({ route, navigation }) {
   const [reloadError, setReloadError] = useState('');
   const [notFound, setNotFound] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [heroImageLoading, setHeroImageLoading] = useState(false);
 
   // Tracking refs
   const hasDataRef = useRef(false);
@@ -342,6 +344,8 @@ export default function AssetDetailScreen({ route, navigation }) {
   const events = asset.events || [];
   const eventCount = events.length;
 
+  const heroPhotoUrl = asset.photoUrl || asset.photo;
+
   return (
     <ScrollView
       style={styles.container}
@@ -364,6 +368,24 @@ export default function AssetDetailScreen({ route, navigation }) {
           >
             <Ionicons name="close" size={18} color={colors.danger} />
           </TouchableOpacity>
+        </View>
+      ) : null}
+
+      {/* Hero / Banner Image */}
+      {heroPhotoUrl ? (
+        <View style={styles.heroImageContainer}>
+          <Image
+            source={{ uri: heroPhotoUrl }}
+            style={styles.heroImage}
+            resizeMode="cover"
+            onLoadStart={() => setHeroImageLoading(true)}
+            onLoadEnd={() => setHeroImageLoading(false)}
+          />
+          {heroImageLoading ? (
+            <View style={styles.heroImagePlaceholder}>
+              <ActivityIndicator size="small" color={colors.primary} />
+            </View>
+          ) : null}
         </View>
       ) : null}
 
@@ -543,6 +565,26 @@ const styles = StyleSheet.create({
     minWidth: 36,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  heroImageContainer: {
+    height: 200,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    marginBottom: spacing.md,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    position: 'relative',
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  heroImagePlaceholder: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
   },
   summaryCard: {
     backgroundColor: colors.white,

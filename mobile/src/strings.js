@@ -242,4 +242,11 @@ export const strings = {
   mediaLibraryPermissionTitle: 'Gallery Permission Needed',
   mediaLibraryPermissionMessage:
     'Photo gallery permission is required to select photos. Please enable media access in your device settings.',
+  photoLabel: 'Asset Photo',
+  changePhoto: 'Change Photo',
+  removePhoto: 'Remove Photo',
+  uploadingPhoto: 'Uploading... {progress}%',
+  uploadFailedTitle: 'Upload Failed',
+  uploadFailedMessage:
+    'Failed to upload photo to Cloudinary. Would you like to retry?',
 };

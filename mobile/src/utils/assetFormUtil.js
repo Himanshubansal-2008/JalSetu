@@ -50,6 +50,7 @@ export function emptyForm() {
     cost: '',
     notes: '',
     statusNote: '',
+    photoUrl: '',
     attributes: {},
   };
 }
@@ -77,6 +78,7 @@ export function assetToForm(asset) {
     cost: paiseToRupees(asset.cost),
     notes: asset.notes || '',
     statusNote: '',
+    photoUrl: asset.photoUrl || asset.photo || '',
     attributes: attrs,
   };
 }
@@ -200,6 +202,10 @@ export function buildCreatePayload(form) {
     }
   }
 
+  if (form.photoUrl && form.photoUrl.trim()) {
+    payload.photoUrl = form.photoUrl.trim();
+  }
+
   const typeFields = ATTRIBUTE_FIELDS[form.type] || [];
   const attrs = {};
   for (const field of typeFields) {
@@ -266,6 +272,13 @@ export function buildUpdatePayload(form, original) {
   const origCostPaise = rupeesToPaise(original.cost);
   if (newCostPaise !== origCostPaise) {
     payload.cost = newCostPaise !== null ? newCostPaise : null;
+  }
+
+  // Photo URL
+  const newPhotoUrl = form.photoUrl ? form.photoUrl.trim() : '';
+  const origPhotoUrl = original.photoUrl ? original.photoUrl.trim() : '';
+  if (newPhotoUrl !== origPhotoUrl) {
+    payload.photoUrl = newPhotoUrl ? newPhotoUrl : null;
   }
 
   // Lat and lng (must send both if either changed)

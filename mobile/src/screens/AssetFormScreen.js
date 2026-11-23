@@ -19,6 +19,7 @@ import {
   Linking,
   Modal,
   SafeAreaView,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -38,6 +39,7 @@ import {
   buildCreatePayload,
   buildUpdatePayload,
 } from '../utils/assetFormUtil';
+import { pickAndCompressPhoto, uploadToCloudinary } from '../utils/photoHelper';
 import { todayString } from '../utils/dateUtil';
 import { ASSET_TYPES, ASSET_STATUSES, typeLabel } from '../utils/assetUtil';
 import { strings } from '../strings';
@@ -55,6 +57,7 @@ function hasUnsavedChanges(form, base) {
   if ((form.cost || '').trim() !== (base.cost || '').trim()) return true;
   if ((form.notes || '').trim() !== (base.notes || '').trim()) return true;
   if ((form.statusNote || '').trim() !== (base.statusNote || '').trim()) return true;
+  if ((form.photoUrl || '').trim() !== (base.photoUrl || '').trim()) return true;
 
   const currentAttrs = form.attributes || {};
   const baseAttrs = base.attributes || {};
@@ -82,6 +85,11 @@ export default function AssetFormScreen({ route, navigation }) {
   const [gettingLocation, setGettingLocation] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [notFound, setNotFound] = useState(false);
+
+  // Photo upload states
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [localPreviewUri, setLocalPreviewUri] = useState(null);
 
   // Map picker modal state
   const [mapModalVisible, setMapModalVisible] = useState(false);
@@ -371,6 +379,52 @@ export default function AssetFormScreen({ route, navigation }) {
     }
   };
 
+  // Photo handlers
+  const performUpload = async (uri) => {
+    setUploading(true);
+    setUploadProgress(0);
+    try {
+      const secureUrl = await uploadToCloudinary(uri, (progress) => {
+        setUploadProgress(progress);
+      });
+      setForm((prev) => ({ ...prev, photoUrl: secureUrl }));
+      setUploading(false);
+    } catch (err) {
+      setUploading(false);
+      Alert.alert(
+        strings.uploadFailedTitle,
+        strings.uploadFailedMessage,
+        [
+          { text: strings.cancel, style: 'cancel' },
+          {
+            text: strings.retry,
+            onPress: () => performUpload(uri),
+          },
+        ]
+      );
+    }
+  };
+
+  const handlePickPhoto = async () => {
+    if (uploading) return;
+    try {
+      const photo = await pickAndCompressPhoto();
+      if (!photo || !photo.uri) return;
+
+      setLocalPreviewUri(photo.uri);
+      await performUpload(photo.uri);
+    } catch (err) {
+      Alert.alert(strings.uploadFailedTitle, getErrorMessage(err));
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    if (uploading) return;
+    setLocalPreviewUri(null);
+    setUploadProgress(0);
+    setForm((prev) => ({ ...prev, photoUrl: '' }));
+  };
+
   // Submit handler
   const handleSave = async () => {
     if (submitting) return;
@@ -491,6 +545,105 @@ export default function AssetFormScreen({ route, navigation }) {
           required={true}
           error={errors.name ? strings[errors.name] : undefined}
         />
+
+        {/* Photo Section */}
+        <View style={styles.photoSection}>
+          <Text style={styles.photoLabel}>{strings.photoLabel}</Text>
+          {localPreviewUri || form.photoUrl ? (
+            <View style={styles.photoPreviewRow}>
+              <View style={styles.photoThumbnailContainer}>
+                <Image
+                  source={{ uri: localPreviewUri || form.photoUrl }}
+                  style={styles.photoThumbnail}
+                />
+                {uploading ? (
+                  <View style={styles.photoUploadingOverlay}>
+                    <ActivityIndicator size="small" color={colors.white} />
+                    <Text style={styles.photoUploadingText}>
+                      {strings.uploadingPhoto.replace(
+                        '{progress}',
+                        String(uploadProgress)
+                      )}
+                    </Text>
+                    <View style={styles.photoProgressBarBg}>
+                      <View
+                        style={[
+                          styles.photoProgressBarFill,
+                          { width: `${uploadProgress}%` },
+                        ]}
+                      />
+                    </View>
+                  </View>
+                ) : null}
+              </View>
+
+              <View style={styles.photoActionsCol}>
+                <TouchableOpacity
+                  style={[
+                    styles.photoActionButton,
+                    uploading ? styles.photoActionButtonDisabled : null,
+                  ]}
+                  onPress={handlePickPhoto}
+                  disabled={uploading}
+                  accessibilityRole="button"
+                  accessibilityLabel={strings.changePhoto}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name="camera-outline"
+                    size={16}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.photoActionText}>
+                    {strings.changePhoto}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.photoActionButton,
+                    styles.photoRemoveButton,
+                    uploading ? styles.photoActionButtonDisabled : null,
+                  ]}
+                  onPress={handleRemovePhoto}
+                  disabled={uploading}
+                  accessibilityRole="button"
+                  accessibilityLabel={strings.removePhoto}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name="trash-outline"
+                    size={16}
+                    color={colors.danger}
+                  />
+                  <Text
+                    style={[styles.photoActionText, { color: colors.danger }]}
+                  >
+                    {strings.removePhoto}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.photoPickerPlaceholder}
+              onPress={handlePickPhoto}
+              disabled={uploading}
+              accessibilityRole="button"
+              accessibilityLabel={strings.addPhoto}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="camera-outline"
+                size={28}
+                color={colors.primary}
+              />
+              <Text style={styles.photoPickerPlaceholderText}>
+                {strings.addPhoto}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* 2. Type */}
         {isEdit ? (
@@ -712,6 +865,7 @@ export default function AssetFormScreen({ route, navigation }) {
             title={strings.save}
             onPress={handleSave}
             loading={submitting}
+            disabled={submitting || uploading}
           />
         </View>
       </ScrollView>
@@ -1013,5 +1167,103 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     marginTop: spacing.md,
+  },
+  photoSection: {
+    marginBottom: spacing.lg,
+  },
+  photoLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing.xs + 2,
+  },
+  photoPreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  photoThumbnailContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    position: 'relative',
+  },
+  photoThumbnail: {
+    width: 120,
+    height: 120,
+    resizeMode: 'cover',
+  },
+  photoUploadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.overlay,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xs,
+  },
+  photoUploadingText: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  photoProgressBarBg: {
+    width: '80%',
+    height: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  photoProgressBarFill: {
+    height: '100%',
+    backgroundColor: colors.white,
+  },
+  photoActionsCol: {
+    flex: 1,
+    gap: spacing.sm,
+  },
+  photoActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.sm + 2,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.white,
+    minHeight: 40,
+  },
+  photoRemoveButton: {
+    borderColor: colors.danger,
+  },
+  photoActionButtonDisabled: {
+    opacity: 0.5,
+  },
+  photoActionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+    marginLeft: spacing.xs,
+  },
+  photoPickerPlaceholder: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    borderRadius: radius.md,
+    backgroundColor: colors.white,
+    height: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoPickerPlaceholderText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+    marginTop: spacing.xs,
   },
 });
