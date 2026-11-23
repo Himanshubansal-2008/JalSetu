@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
 import AssetsStack from './AssetsStack';
+import AssetMapScreen from '../screens/AssetMapScreen';
 import { strings } from '../strings';
 import { colors } from '../theme';
 
@@ -21,6 +22,8 @@ export default function WorkerTabs() {
             iconName = 'home-outline';
           } else if (route.name === strings.assets) {
             iconName = 'cube-outline';
+          } else if (route.name === strings.map) {
+            iconName = 'map-outline';
           } else if (route.name === strings.inventory) {
             iconName = 'file-tray-stacked-outline';
           }
@@ -33,6 +36,11 @@ export default function WorkerTabs() {
         name={strings.assets}
         component={AssetsStack}
         options={{ headerShown: false }}
+      />
+      <Tab.Screen
+        name={strings.map}
+        component={AssetMapScreen}
+        options={{ title: strings.assetsMap }}
       />
       <Tab.Screen name={strings.inventory} component={PlaceholderScreen} />
     </Tab.Navigator>

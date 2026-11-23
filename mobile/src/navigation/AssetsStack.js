@@ -9,6 +9,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AssetListScreen from '../screens/AssetListScreen';
 import AssetFormScreen from '../screens/AssetFormScreen';
 import AssetDetailScreen from '../screens/AssetDetailScreen';
+import AssetMapScreen from '../screens/AssetMapScreen';
 import { strings } from '../strings';
 import { colors, spacing } from '../theme';
 
@@ -58,6 +59,13 @@ export default function AssetsStack() {
         options={({ route }) => ({
           title: route.params?.name || strings.assetDetailTitle,
         })}
+      />
+      <Stack.Screen
+        name="AssetMap"
+        component={AssetMapScreen}
+        options={{
+          title: strings.assetsMap,
+        }}
       />
     </Stack.Navigator>
   );

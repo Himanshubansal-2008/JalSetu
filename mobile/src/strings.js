@@ -37,6 +37,8 @@ export const strings = {
   dashboard: 'Dashboard',
   home: 'Home',
   assets: 'Assets',
+  map: 'Map',
+  assetsMap: 'Assets Map',
   inventory: 'Inventory',
   finance: 'Finance',
   consumers: 'Consumers',
@@ -221,4 +223,9 @@ export const strings = {
   selectedCoordinates: 'Selected: {lat}, {lng}',
   confirmLocation: 'Confirm location',
   loadingMap: 'Loading map...',
+
+  // Map Screen
+  viewDetails: 'View Details',
+  noAssetsWithLocation: 'No assets with GPS coordinates found yet',
+  legendTitle: 'Status',
 };
