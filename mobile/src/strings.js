@@ -230,4 +230,16 @@ export const strings = {
   noAssetsWithLocation: 'No assets with GPS coordinates found yet',
   noTypeAssetsOnMap: 'No {type} assets on map',
   legendTitle: 'Status',
+
+  // Photo Helper
+  selectPhotoSourceTitle: 'Add Photo',
+  selectPhotoSourceMessage: 'Choose an option to attach a photo',
+  takePhoto: 'Take Photo',
+  chooseFromGallery: 'Choose from Gallery',
+  cameraPermissionTitle: 'Camera Permission Needed',
+  cameraPermissionMessage:
+    'Camera permission is required to take photos. Please enable camera access in your device settings.',
+  mediaLibraryPermissionTitle: 'Gallery Permission Needed',
+  mediaLibraryPermissionMessage:
+    'Photo gallery permission is required to select photos. Please enable media access in your device settings.',
 };
