@@ -12,15 +12,16 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import StatusBadge from './StatusBadge';
-import { colors, tones, spacing } from '../theme';
+import { colors, tones, spacing, radius } from '../theme';
 
 export default function TimelineItem({
   title,
   tone = 'neutral',
   note,
   meta,
+  photoUrl,
   isLast = false,
 }) {
   const currentTone = tones[tone] || tones.neutral;
@@ -44,6 +45,14 @@ export default function TimelineItem({
         </View>
 
         {note ? <Text style={styles.note}>{note}</Text> : null}
+
+        {photoUrl ? (
+          <Image
+            source={{ uri: photoUrl }}
+            style={styles.photo}
+            resizeMode="cover"
+          />
+        ) : null}
 
         {meta ? <Text style={styles.meta}>{meta}</Text> : null}
       </View>
@@ -89,6 +98,16 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginTop: spacing.xs,
     lineHeight: 20,
+  },
+  photo: {
+    width: 80,
+    height: 80,
+    borderRadius: radius.sm,
+    marginTop: spacing.xs + 2,
+    marginBottom: spacing.xs,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   meta: {
     fontSize: 12,

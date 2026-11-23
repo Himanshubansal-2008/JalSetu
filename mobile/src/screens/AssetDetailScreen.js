@@ -483,11 +483,28 @@ export default function AssetDetailScreen({ route, navigation }) {
 
       {/* f) History Section */}
       <View style={styles.sectionCard}>
-        <Text style={styles.sectionTitle}>
-          {eventCount > 0
-            ? strings.historyCountTitle.replace('{count}', eventCount)
-            : strings.historySection}
-        </Text>
+        <View style={styles.historySectionHeaderRow}>
+          <Text style={styles.sectionTitle}>
+            {eventCount > 0
+              ? strings.historyCountTitle.replace('{count}', eventCount)
+              : strings.historySection}
+          </Text>
+          <TouchableOpacity
+            style={styles.addNoteHeaderButton}
+            onPress={() =>
+              navigation.navigate('AddNote', {
+                assetId: asset.id,
+                assetName: asset.name,
+              })
+            }
+            accessibilityRole="button"
+            accessibilityLabel={strings.addNote}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="add" size={18} color={colors.primary} />
+            <Text style={styles.addNoteHeaderButtonText}>{strings.addNote}</Text>
+          </TouchableOpacity>
+        </View>
 
         {eventCount === 0 ? (
           <Text style={styles.mutedPlaceholderText}>
@@ -509,6 +526,7 @@ export default function AssetDetailScreen({ route, navigation }) {
                   tone={eventKindTone(event.kind)}
                   note={event.note}
                   meta={metaText}
+                  photoUrl={event.photoUrl || event.photo}
                   isLast={index === events.length - 1}
                 />
               );
@@ -655,6 +673,26 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.text,
     marginBottom: spacing.sm,
+  },
+  historySectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+  },
+  addNoteHeaderButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
+    backgroundColor: tones.neutral.bg,
+  },
+  addNoteHeaderButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+    marginLeft: 2,
   },
   timelineList: {
     marginTop: spacing.sm,

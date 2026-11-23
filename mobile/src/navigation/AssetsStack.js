@@ -10,6 +10,7 @@ import AssetListScreen from '../screens/AssetListScreen';
 import AssetFormScreen from '../screens/AssetFormScreen';
 import AssetDetailScreen from '../screens/AssetDetailScreen';
 import AssetMapScreen from '../screens/AssetMapScreen';
+import AddNoteScreen from '../screens/AddNoteScreen';
 import { strings } from '../strings';
 import { colors, spacing } from '../theme';
 
@@ -66,6 +67,15 @@ export default function AssetsStack() {
         options={{
           title: strings.assetsMap,
         }}
+      />
+      <Stack.Screen
+        name="AddNote"
+        component={AddNoteScreen}
+        options={({ route }) => ({
+          title: route.params?.assetName
+            ? `${strings.addNoteTitle} · ${route.params.assetName}`
+            : strings.addNoteTitle,
+        })}
       />
     </Stack.Navigator>
   );

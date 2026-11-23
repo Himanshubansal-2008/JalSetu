@@ -249,4 +249,15 @@ export const strings = {
   uploadFailedTitle: 'Upload Failed',
   uploadFailedMessage:
     'Failed to upload photo to Cloudinary. Would you like to retry?',
+
+  // Add Note / History Event
+  addNote: 'Add Note',
+  addNoteTitle: 'Add Note',
+  eventKindLabel: 'Event Type',
+  eventNoteLabel: 'Note',
+  eventNotePlaceholder:
+    'Describe the repair, inspection finding, or observation...',
+  errNoteRequired: 'Note cannot be empty',
+  saveNote: 'Save Note',
+  attachPhotoOptional: 'Attach Photo (Optional)',
 };
