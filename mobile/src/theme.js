@@ -28,6 +28,10 @@ export const tones = {
     fg: '#4B5563',
     bg: '#EEF0F3',
   },
+  info: {
+    fg: '#0B6BCB',
+    bg: '#E3F2FD',
+  },
 };
 
 export const spacing = {

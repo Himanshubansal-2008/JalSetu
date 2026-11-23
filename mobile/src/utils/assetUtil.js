@@ -137,14 +137,29 @@ export function eventKindLabelKey(kind) {
 }
 
 export function eventKindTone(kind) {
-  switch (kind) {
-    case 'STATUS_CHANGE':
-      return 'warning';
+  switch (kind?.toUpperCase()) {
     case 'REPAIR':
       return 'danger';
     case 'INSPECTION':
+      return 'info';
+    case 'STATUS_CHANGE':
+      return 'warning';
     case 'NOTE':
     default:
       return 'neutral';
   }
+}
+
+export function formatEventNote(note, kind) {
+  if (!note) return '';
+  if (kind?.toUpperCase() === 'STATUS_CHANGE') {
+    const match = note.match(/^Status changed from (\w+) to (\w+)(?::\s*(.*))?$/i);
+    if (match) {
+      const fromStatus = statusLabel(match[1]) || match[1];
+      const toStatus = statusLabel(match[2]) || match[2];
+      const reason = match[3] ? `: ${match[3]}` : '';
+      return `${strings.statusChangedFrom} ${fromStatus} ${strings.to} ${toStatus}${reason}`;
+    }
+  }
+  return note;
 }

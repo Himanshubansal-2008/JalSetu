@@ -32,6 +32,7 @@ import {
   statusLabel,
   eventKindLabelKey,
   eventKindTone,
+  formatEventNote,
 } from '../utils/assetUtil';
 import { ATTRIBUTE_FIELDS } from '../utils/assetFormUtil';
 import { formatRupees } from '../utils/moneyUtil';
@@ -340,8 +341,13 @@ export default function AssetDetailScreen({ route, navigation }) {
       ? formatRupees(asset.cost)
       : strings.emDash;
 
-  // History events
-  const events = asset.events || [];
+  // History events sorted newest-first (createdAt descending)
+  const rawEvents = asset.events || [];
+  const events = [...rawEvents].sort((a, b) => {
+    const timeA = new Date(a.createdAt || a.timestamp || 0).getTime();
+    const timeB = new Date(b.createdAt || b.timestamp || 0).getTime();
+    return timeB - timeA;
+  });
   const eventCount = events.length;
 
   const heroPhotoUrl = asset.photoUrl || asset.photo;
@@ -513,19 +519,24 @@ export default function AssetDetailScreen({ route, navigation }) {
         ) : (
           <View style={styles.timelineList}>
             {events.map((event, index) => {
-              const eventDateStr = formatDateTime(event.createdAt);
-              const authorName = event.createdBy?.name || strings.unknownUser;
-              const metaText = strings.historyMeta
-                .replace('{name}', authorName)
-                .replace('{date}', eventDateStr);
+              const eventKind = event.kind || 'NOTE';
+              const eventDateStr = formatDateTime(
+                event.createdAt || event.timestamp
+              );
+              const authorName =
+                event.authorName ||
+                event.createdBy?.name ||
+                strings.unknownUser;
+              const formattedNote = formatEventNote(event.note, eventKind);
 
               return (
                 <TimelineItem
                   key={event.id || String(index)}
-                  title={strings[eventKindLabelKey(event.kind)]}
-                  tone={eventKindTone(event.kind)}
-                  note={event.note}
-                  meta={metaText}
+                  title={strings[eventKindLabelKey(eventKind)] || eventKind}
+                  tone={eventKindTone(eventKind)}
+                  dateTime={eventDateStr}
+                  note={formattedNote}
+                  author={authorName}
                   photoUrl={event.photoUrl || event.photo}
                   isLast={index === events.length - 1}
                 />

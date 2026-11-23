@@ -180,13 +180,17 @@ export const strings = {
   emDash: '—',
 
   // History Section
-  noHistoryYet: 'No history yet',
+  noHistoryYet: 'No history or notes recorded yet.',
   showingLatest50Entries: 'Showing the latest 50 entries',
   historyMeta: 'by {name} · {date}',
+  byAuthor: 'by {name}',
   unknownUser: 'Unknown',
+  statusChangedFrom: 'Status changed from',
+  to: 'to',
+  viewPhoto: 'View Photo',
 
   // Event Kind Labels
-  eventStatusChange: 'Status change',
+  eventStatusChange: 'Status Change',
   eventRepair: 'Repair',
   eventInspection: 'Inspection',
   eventNote: 'Note',
