@@ -130,6 +130,101 @@ const updateDateSchema = (fieldName, rejectFuture = false) =>
       return new Date(val);
     });
 
+// Schema for validating base64 photo data
+const photoSchema = z
+  .string({
+    invalid_type_error: 'Photo must be a JPEG, PNG or WebP image',
+  })
+  .superRefine((val, ctx) => {
+    // Empty string check
+    if (val === '') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Photo data is not valid',
+      });
+      return;
+    }
+
+    // Maximum length 1,000,000 characters
+    if (val.length > 1000000) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Photo is too large. Please use a smaller image',
+      });
+      return;
+    }
+
+    // Must match data URI prefix for allowed image types
+    const match = val.match(/^data:image\/(jpeg|png|webp);base64,(.*)$/s);
+    if (!match) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Photo must be a JPEG, PNG or WebP image',
+      });
+      return;
+    }
+
+    const type = match[1];
+    const base64Data = match[2];
+
+    // Must be valid base64 with length multiple of 4 and max 2 '=' padding chars
+    if (
+      base64Data.length === 0 ||
+      base64Data.length % 4 !== 0 ||
+      !/^[A-Za-z0-9+/]+={0,2}$/.test(base64Data)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Photo data is not valid',
+      });
+      return;
+    }
+
+    // Decode first header bytes to verify magic bytes against declared type
+    const headerBuffer = Buffer.from(base64Data.slice(0, 32), 'base64');
+
+    if (type === 'jpeg') {
+      if (
+        headerBuffer.length < 3 ||
+        headerBuffer[0] !== 0xff ||
+        headerBuffer[1] !== 0xd8 ||
+        headerBuffer[2] !== 0xff
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Photo data is not a valid image',
+        });
+        return;
+      }
+    } else if (type === 'png') {
+      if (
+        headerBuffer.length < 4 ||
+        headerBuffer[0] !== 0x89 ||
+        headerBuffer[1] !== 0x50 ||
+        headerBuffer[2] !== 0x4e ||
+        headerBuffer[3] !== 0x47
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Photo data is not a valid image',
+        });
+        return;
+      }
+    } else if (type === 'webp') {
+      if (
+        headerBuffer.length < 12 ||
+        headerBuffer.toString('ascii', 0, 4) !== 'RIFF' ||
+        headerBuffer.toString('ascii', 8, 12) !== 'WEBP'
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Photo data is not a valid image',
+        });
+        return;
+      }
+    }
+  });
+
 // Schema for creating an asset
 const createAssetSchema = z
   .object({
@@ -186,6 +281,7 @@ const createAssetSchema = z
       )
       .nullable()
       .optional(),
+    photo: photoSchema.nullable().optional(),
   })
   .superRefine((data, ctx) => {
     const hasLat = data.lat !== undefined && data.lat !== null;
@@ -197,10 +293,16 @@ const createAssetSchema = z
       });
     }
   })
-  .transform((data) => ({
-    ...data,
-    attributes: sanitizeAttributes(data.type, data.attributes),
-  }));
+  .transform((data) => {
+    const sanitized = {
+      ...data,
+      attributes: sanitizeAttributes(data.type, data.attributes),
+    };
+    if (sanitized.photo === null || sanitized.photo === undefined) {
+      delete sanitized.photo;
+    }
+    return sanitized;
+  });
 
 // Schema for updating an asset (partial update)
 const updateAssetSchema = z
@@ -258,6 +360,7 @@ const updateAssetSchema = z
       .trim()
       .max(300, 'Status note must be at most 300 characters')
       .optional(),
+    photo: photoSchema.nullable().optional(),
   })
   .superRefine((data, ctx) => {
     // If either lat or lng is present, both must be present
@@ -283,6 +386,7 @@ const updateAssetSchema = z
       'notes',
       'attributes',
       'statusNote',
+      'photo',
     ];
     const hasAnyField = updatableKeys.some((k) => data[k] !== undefined);
     if (!hasAnyField) {
@@ -326,4 +430,5 @@ module.exports = {
   createAssetSchema,
   updateAssetSchema,
   listAssetsQuerySchema,
+  photoSchema,
 };

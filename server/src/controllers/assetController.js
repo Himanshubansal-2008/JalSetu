@@ -42,6 +42,7 @@ async function createAsset(req, res, next) {
         ...parsed.data,
         gpId: req.user.gpId,
       },
+      select: assetSelectWithoutPhoto,
     });
 
     return res.status(201).json({ asset });
@@ -191,6 +192,7 @@ async function updateAsset(req, res, next) {
     if (parsed.data.warrantyExpiry !== undefined) updateData.warrantyExpiry = parsed.data.warrantyExpiry;
     if (parsed.data.cost !== undefined) updateData.cost = parsed.data.cost;
     if (parsed.data.notes !== undefined) updateData.notes = parsed.data.notes;
+    if (parsed.data.photo !== undefined) updateData.photo = parsed.data.photo;
 
     if (parsed.data.attributes !== undefined) {
       if (parsed.data.attributes === null) {

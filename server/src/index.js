@@ -27,6 +27,9 @@ app.use((req, res, next) => {
 
 // Central error handler
 app.use((err, req, res, next) => {
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Image or request is too large' });
+  }
   console.error('Server error:', err);
   res.status(500).json({ error: 'Something went wrong' });
 });
