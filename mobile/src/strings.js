@@ -212,4 +212,13 @@ export const strings = {
   locationErrorTitle: 'Location Error',
   locationErrorMessage:
     'Unable to acquire current location. Please check your GPS signal or enter coordinates manually.',
+
+  // Map Picker
+  pickOnMap: 'Pick on map',
+  pickOnMapTitle: 'Pick Location on Map',
+  tapToPlacePin: 'Tap on the map to place a location pin',
+  dragPinHint: 'Drag the pin or tap elsewhere to adjust',
+  selectedCoordinates: 'Selected: {lat}, {lng}',
+  confirmLocation: 'Confirm location',
+  loadingMap: 'Loading map...',
 };

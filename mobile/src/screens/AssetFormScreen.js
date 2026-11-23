@@ -17,9 +17,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   Linking,
+  Modal,
+  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import MapView, { Marker } from 'react-native-maps';
 import apiClient, { getErrorMessage } from '../api/apiClient';
 import { useAuthStore } from '../store/authStore';
 import FormField from '../components/FormField';
@@ -79,6 +82,12 @@ export default function AssetFormScreen({ route, navigation }) {
   const [gettingLocation, setGettingLocation] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [notFound, setNotFound] = useState(false);
+
+  // Map picker modal state
+  const [mapModalVisible, setMapModalVisible] = useState(false);
+  const [loadingMapRegion, setLoadingMapRegion] = useState(false);
+  const [mapRegion, setMapRegion] = useState(null);
+  const [selectedCoord, setSelectedCoord] = useState(null);
 
   // Errors & feedback
   const [errors, setErrors] = useState({});
@@ -247,6 +256,83 @@ export default function AssetFormScreen({ route, navigation }) {
     } finally {
       setGettingLocation(false);
     }
+  };
+
+  // Map picker handlers
+  const handleOpenMapPicker = async () => {
+    // 1. Check if form already has valid coordinates
+    const latNum = Number(String(form.lat).trim().replace(',', '.'));
+    const lngNum = Number(String(form.lng).trim().replace(',', '.'));
+    const hasValidCoords =
+      String(form.lat).trim() !== '' &&
+      String(form.lng).trim() !== '' &&
+      !isNaN(latNum) &&
+      latNum >= -90 &&
+      latNum <= 90 &&
+      !isNaN(lngNum) &&
+      lngNum >= -180 &&
+      lngNum <= 180;
+
+    if (hasValidCoords) {
+      setMapRegion({
+        latitude: latNum,
+        longitude: lngNum,
+        latitudeDelta: 0.005,
+        longitudeDelta: 0.005,
+      });
+      setSelectedCoord({
+        latitude: latNum,
+        longitude: lngNum,
+      });
+      setMapModalVisible(true);
+      return;
+    }
+
+    // 2. Open modal and fetch current GPS position or fallback to central India
+    setSelectedCoord(null);
+    setLoadingMapRegion(true);
+    setMapModalVisible(true);
+
+    let region = {
+      latitude: 20.5937,
+      longitude: 78.9629,
+      latitudeDelta: 8.0,
+      longitudeDelta: 8.0,
+    };
+
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        if (location?.coords) {
+          region = {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            latitudeDelta: 0.005,
+            longitudeDelta: 0.005,
+          };
+        }
+      }
+    } catch {
+      // Ignore errors, default fallback region will be used
+    } finally {
+      setMapRegion(region);
+      setLoadingMapRegion(false);
+    }
+  };
+
+  const handleConfirmMapCoord = () => {
+    if (!selectedCoord) return;
+    const latStr = selectedCoord.latitude.toFixed(6);
+    const lngStr = selectedCoord.longitude.toFixed(6);
+    updateCoords(latStr, lngStr);
+    setMapModalVisible(false);
+  };
+
+  const handleCancelMapCoord = () => {
+    setMapModalVisible(false);
   };
 
   const handleTypeChange = (newType) => {
@@ -472,49 +558,68 @@ export default function AssetFormScreen({ route, navigation }) {
 
         {/* 6. Location: Latitude and Longitude */}
         <View style={styles.locationContainer}>
-          <TouchableOpacity
-            style={[
-              styles.useLocationButton,
-              gettingLocation ? styles.useLocationButtonDisabled : null,
-            ]}
-            onPress={handleUseMyLocation}
-            disabled={gettingLocation}
-            accessibilityRole="button"
-            accessibilityLabel={
-              gettingLocation
-                ? strings.gettingLocation
-                : strings.useMyLocation
-            }
-            accessibilityState={{
-              disabled: gettingLocation,
-              busy: gettingLocation,
-            }}
-            activeOpacity={0.7}
-          >
-            {gettingLocation ? (
-              <>
-                <ActivityIndicator
-                  size="small"
-                  color={colors.primary}
-                  style={styles.useLocationSpinner}
-                />
-                <Text style={styles.useLocationButtonText}>
-                  {strings.gettingLocation}
-                </Text>
-              </>
-            ) : (
-              <>
-                <Ionicons
-                  name="location-outline"
-                  size={18}
-                  color={colors.primary}
-                />
-                <Text style={styles.useLocationButtonText}>
-                  {strings.useMyLocation}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
+          <View style={styles.locationButtonsRow}>
+            <TouchableOpacity
+              style={[
+                styles.useLocationButton,
+                gettingLocation ? styles.useLocationButtonDisabled : null,
+              ]}
+              onPress={handleUseMyLocation}
+              disabled={gettingLocation}
+              accessibilityRole="button"
+              accessibilityLabel={
+                gettingLocation
+                  ? strings.gettingLocation
+                  : strings.useMyLocation
+              }
+              accessibilityState={{
+                disabled: gettingLocation,
+                busy: gettingLocation,
+              }}
+              activeOpacity={0.7}
+            >
+              {gettingLocation ? (
+                <>
+                  <ActivityIndicator
+                    size="small"
+                    color={colors.primary}
+                    style={styles.useLocationSpinner}
+                  />
+                  <Text style={styles.useLocationButtonText}>
+                    {strings.gettingLocation}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons
+                    name="location-outline"
+                    size={18}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.useLocationButtonText}>
+                    {strings.useMyLocation}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.pickOnMapButton}
+              onPress={handleOpenMapPicker}
+              accessibilityRole="button"
+              accessibilityLabel={strings.pickOnMap}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name="map-outline"
+                size={18}
+                color={colors.primary}
+              />
+              <Text style={styles.pickOnMapButtonText}>
+                {strings.pickOnMap}
+              </Text>
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.coordsRow}>
             <View style={styles.coordField}>
@@ -610,6 +715,100 @@ export default function AssetFormScreen({ route, navigation }) {
           />
         </View>
       </ScrollView>
+
+      {/* Map Location Picker Modal */}
+      <Modal
+        visible={mapModalVisible}
+        animationType="slide"
+        onRequestClose={handleCancelMapCoord}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          {/* Header */}
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{strings.pickOnMapTitle}</Text>
+            <TouchableOpacity
+              onPress={handleCancelMapCoord}
+              style={styles.modalCloseButton}
+              accessibilityRole="button"
+              accessibilityLabel={strings.cancel}
+            >
+              <Ionicons name="close" size={24} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Map Area */}
+          <View style={styles.mapWrapper}>
+            {loadingMapRegion ? (
+              <View style={styles.mapLoadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={styles.mapLoadingText}>{strings.loadingMap}</Text>
+              </View>
+            ) : mapRegion ? (
+              <MapView
+                style={StyleSheet.absoluteFillObject}
+                initialRegion={mapRegion}
+                onPress={(e) => {
+                  if (e?.nativeEvent?.coordinate) {
+                    setSelectedCoord(e.nativeEvent.coordinate);
+                  }
+                }}
+              >
+                {selectedCoord ? (
+                  <Marker
+                    coordinate={selectedCoord}
+                    draggable
+                    onDragEnd={(e) => {
+                      if (e?.nativeEvent?.coordinate) {
+                        setSelectedCoord(e.nativeEvent.coordinate);
+                      }
+                    }}
+                  />
+                ) : null}
+              </MapView>
+            ) : null}
+          </View>
+
+          {/* Bottom Card */}
+          <View style={styles.modalBottomCard}>
+            <View style={styles.selectedCoordsInfo}>
+              {selectedCoord ? (
+                <>
+                  <Text style={styles.selectedCoordsText}>
+                    {strings.selectedCoordinates
+                      .replace('{lat}', selectedCoord.latitude.toFixed(6))
+                      .replace('{lng}', selectedCoord.longitude.toFixed(6))}
+                  </Text>
+                  <Text style={styles.dragPinHintText}>
+                    {strings.dragPinHint}
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.tapToPlacePinText}>
+                  {strings.tapToPlacePin}
+                </Text>
+              )}
+            </View>
+
+            <View style={styles.modalActionsRow}>
+              <View style={styles.modalActionCol}>
+                <PrimaryButton
+                  title={strings.cancel}
+                  variant="secondary"
+                  onPress={handleCancelMapCoord}
+                />
+              </View>
+              <View style={styles.modalActionCol}>
+                <PrimaryButton
+                  title={strings.confirmLocation}
+                  variant="primary"
+                  onPress={handleConfirmMapCoord}
+                  disabled={!selectedCoord}
+                />
+              </View>
+            </View>
+          </View>
+        </SafeAreaView>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -662,31 +861,127 @@ const styles = StyleSheet.create({
   locationContainer: {
     marginBottom: spacing.lg,
   },
+  locationButtonsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
   useLocationButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 44,
     paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
     borderRadius: radius.sm + 2,
     borderWidth: 1,
     borderColor: colors.primary,
     backgroundColor: colors.white,
-    marginBottom: spacing.sm,
   },
   useLocationButtonDisabled: {
     opacity: 0.6,
     borderColor: colors.border,
   },
   useLocationButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.primary,
     marginLeft: spacing.xs,
   },
   useLocationSpinner: {
     marginRight: spacing.xs,
+  },
+  pickOnMapButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm + 2,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.white,
+  },
+  pickOnMapButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+    marginLeft: spacing.xs,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: colors.white,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.white,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  modalCloseButton: {
+    minHeight: 44,
+    minWidth: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mapWrapper: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  mapLoadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mapLoadingText: {
+    marginTop: spacing.sm,
+    fontSize: 14,
+    color: colors.muted,
+  },
+  modalBottomCard: {
+    backgroundColor: colors.white,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    padding: spacing.lg,
+  },
+  selectedCoordsInfo: {
+    marginBottom: spacing.md,
+    minHeight: 40,
+    justifyContent: 'center',
+  },
+  selectedCoordsText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  dragPinHintText: {
+    fontSize: 12,
+    color: colors.muted,
+    marginTop: 2,
+  },
+  tapToPlacePinText: {
+    fontSize: 14,
+    color: colors.muted,
+    fontStyle: 'italic',
+  },
+  modalActionsRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  modalActionCol: {
+    flex: 1,
   },
   coordsRow: {
     flexDirection: 'row',
