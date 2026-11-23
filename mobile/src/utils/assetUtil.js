@@ -65,6 +65,19 @@ export function statusLabel(status) {
   return match ? match.label : status || '';
 }
 
+export function getMarkerColor(status) {
+  switch (status?.toUpperCase()) {
+    case 'WORKING':
+      return '#22c55e'; // Green
+    case 'UNDER_REPAIR':
+      return '#f59e0b'; // Amber
+    case 'FAULTY':
+      return '#ef4444'; // Red
+    default:
+      return '#6B7280'; // colors.muted
+  }
+}
+
 export function attributeSummary(asset) {
   if (!asset || !asset.attributes || typeof asset.attributes !== 'object') {
     return '';

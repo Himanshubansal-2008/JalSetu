@@ -264,4 +264,11 @@ export const strings = {
   errNoteRequired: 'Note cannot be empty',
   saveNote: 'Save Note',
   attachPhotoOptional: 'Attach Photo (Optional)',
+
+  // Location Map Preview & Google Maps
+  locationNotRecorded: 'Location coordinates not recorded',
+  openInGoogleMaps: 'Open in Google Maps',
+  mapsErrorTitle: 'Unable to Open Maps',
+  mapsErrorMessage:
+    'Could not open Google Maps or web browser on this device.',
 };

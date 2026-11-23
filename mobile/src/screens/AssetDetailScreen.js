@@ -15,9 +15,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
+  Linking,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import MapView, { Marker } from 'react-native-maps';
 import apiClient, { getErrorMessage } from '../api/apiClient';
 import { useAuthStore } from '../store/authStore';
 import PrimaryButton from '../components/PrimaryButton';
@@ -33,6 +35,7 @@ import {
   eventKindLabelKey,
   eventKindTone,
   formatEventNote,
+  getMarkerColor,
 } from '../utils/assetUtil';
 import { ATTRIBUTE_FIELDS } from '../utils/assetFormUtil';
 import { formatRupees } from '../utils/moneyUtil';
@@ -305,14 +308,32 @@ export default function AssetDetailScreen({ route, navigation }) {
   const hasSpecifications = validAttrEntries.length > 0;
 
   // Process location
-  const hasCoordinates =
+  const latNum = Number(asset.lat);
+  const lngNum = Number(asset.lng);
+  const hasValidCoords =
     asset.lat !== null &&
     asset.lat !== undefined &&
     asset.lng !== null &&
-    asset.lng !== undefined;
-  const locationText = hasCoordinates
-    ? `${Number(asset.lat).toFixed(5)}, ${Number(asset.lng).toFixed(5)}`
+    asset.lng !== undefined &&
+    !isNaN(latNum) &&
+    !isNaN(lngNum) &&
+    latNum >= -90 &&
+    latNum <= 90 &&
+    lngNum >= -180 &&
+    lngNum <= 180;
+  const locationText = hasValidCoords
+    ? `${latNum.toFixed(6)}, ${lngNum.toFixed(6)}`
     : strings.emDash;
+
+  const handleOpenGoogleMaps = async () => {
+    if (!hasValidCoords) return;
+    const url = `https://www.google.com/maps/search/?api=1&query=${latNum},${lngNum}`;
+    try {
+      await Linking.openURL(url);
+    } catch (err) {
+      Alert.alert(strings.mapsErrorTitle, strings.mapsErrorMessage);
+    }
+  };
 
   // Process dates
   const installDateStr = asset.installDate
@@ -463,7 +484,59 @@ export default function AssetDetailScreen({ route, navigation }) {
         <DetailRow label={strings.addedOnLabel} value={addedOnDisplay} />
       </View>
 
-      {/* d) Specifications Section (only if attribute fields exist and at least one is filled) */}
+      {/* d) Location Map Preview Card */}
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>{strings.locationLabel}</Text>
+        {hasValidCoords ? (
+          <>
+            <View style={styles.mapPreviewContainer}>
+              <MapView
+                style={styles.mapPreview}
+                initialRegion={{
+                  latitude: latNum,
+                  longitude: lngNum,
+                  latitudeDelta: 0.004,
+                  longitudeDelta: 0.004,
+                }}
+                scrollEnabled={false}
+                zoomEnabled={false}
+                pitchEnabled={false}
+                rotateEnabled={false}
+              >
+                <Marker
+                  coordinate={{ latitude: latNum, longitude: lngNum }}
+                  pinColor={getMarkerColor(asset.status)}
+                />
+              </MapView>
+            </View>
+            <Text style={styles.coordinatesText}>
+              {`${latNum.toFixed(6)}, ${lngNum.toFixed(6)}`}
+            </Text>
+            <TouchableOpacity
+              style={styles.openMapsButton}
+              onPress={handleOpenGoogleMaps}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={strings.openInGoogleMaps}
+            >
+              <Ionicons
+                name="navigate-outline"
+                size={18}
+                color={colors.white}
+              />
+              <Text style={styles.openMapsButtonText}>
+                {strings.openInGoogleMaps}
+              </Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <Text style={styles.mutedPlaceholderText}>
+            {strings.locationNotRecorded}
+          </Text>
+        )}
+      </View>
+
+      {/* e) Specifications Section (only if attribute fields exist and at least one is filled) */}
       {hasSpecifications ? (
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>
@@ -718,5 +791,39 @@ const styles = StyleSheet.create({
     color: colors.muted,
     textAlign: 'center',
     marginTop: spacing.xs,
+  },
+  mapPreviewContainer: {
+    height: 160,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.sm,
+  },
+  mapPreview: {
+    width: '100%',
+    height: '100%',
+  },
+  coordinatesText: {
+    fontSize: 13,
+    color: colors.muted,
+    fontWeight: '600',
+    marginBottom: spacing.md,
+  },
+  openMapsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.sm + 2,
+    minHeight: 44,
+  },
+  openMapsButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.white,
+    marginLeft: spacing.xs,
   },
 });
