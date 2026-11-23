@@ -225,7 +225,9 @@ export const strings = {
   loadingMap: 'Loading map...',
 
   // Map Screen
+  all: 'All',
   viewDetails: 'View Details',
   noAssetsWithLocation: 'No assets with GPS coordinates found yet',
+  noTypeAssetsOnMap: 'No {type} assets on map',
   legendTitle: 'Status',
 };

@@ -1,19 +1,21 @@
 /**
  * AssetMapScreen.js
  * Map screen showing all Gram Panchayat assets with valid GPS coordinates.
- * Displays status-colored markers, status legend, marker callout, bottom preview card,
- * and tap-to-detail navigation.
+ * Displays an asset type filter bar, status-colored markers, status legend,
+ * marker callout, bottom preview card, and tap-to-detail navigation.
  */
 
 import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
+  ScrollView,
   ActivityIndicator,
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Callout } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import apiClient, { getErrorMessage } from '../api/apiClient';
@@ -21,6 +23,7 @@ import { useAuthStore } from '../store/authStore';
 import StatusBadge from '../components/StatusBadge';
 import PrimaryButton from '../components/PrimaryButton';
 import {
+  ASSET_TYPES,
   typeIcon,
   typeLabel,
   statusLabel,
@@ -77,13 +80,22 @@ function filterValidAssets(rawAssets) {
 }
 
 export default function AssetMapScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
+
   const [assets, setAssets] = useState([]);
+  const [selectedType, setSelectedType] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedAsset, setSelectedAsset] = useState(null);
 
   const mapRef = useRef(null);
   const requestIdRef = useRef(0);
+
+  // Filter options: "All" + all supported asset types
+  const filterOptions = [
+    { value: 'ALL', label: strings.all },
+    ...ASSET_TYPES,
+  ];
 
   // Fetch assets and filter for valid coordinates
   const fetchAssets = async () => {
@@ -108,7 +120,7 @@ export default function AssetMapScreen({ navigation }) {
               longitude: Number(a.lng),
             })),
             {
-              edgePadding: { top: 80, right: 60, bottom: 200, left: 60 },
+              edgePadding: { top: 120, right: 60, bottom: 200, left: 60 },
               animated: true,
             }
           );
@@ -144,6 +156,20 @@ export default function AssetMapScreen({ navigation }) {
     }, [])
   );
 
+  // Handle asset type selection and close preview card if selected asset is filtered out
+  const handleSelectType = (typeValue) => {
+    setSelectedType(typeValue);
+    if (selectedAsset && typeValue !== 'ALL' && selectedAsset.type !== typeValue) {
+      setSelectedAsset(null);
+    }
+  };
+
+  // Filter markers based on selected asset type
+  const displayedAssets = assets.filter((asset) => {
+    if (selectedType === 'ALL') return true;
+    return asset.type === selectedType;
+  });
+
   // Navigate to Asset Detail screen
   const handleNavigateToDetail = (asset) => {
     if (!asset) return;
@@ -158,6 +184,8 @@ export default function AssetMapScreen({ navigation }) {
     });
   };
 
+  const topOffset = insets.top > 20 ? insets.top : spacing.sm;
+
   return (
     <View style={styles.container}>
       <MapView
@@ -166,7 +194,7 @@ export default function AssetMapScreen({ navigation }) {
         initialRegion={DEFAULT_REGION}
         onPress={() => setSelectedAsset(null)}
       >
-        {assets.map((asset) => {
+        {displayedAssets.map((asset) => {
           const lat = Number(asset.lat);
           const lng = Number(asset.lng);
           const markerColor = getMarkerColor(asset.status);
@@ -196,6 +224,85 @@ export default function AssetMapScreen({ navigation }) {
         })}
       </MapView>
 
+      {/* Top Filter Bar */}
+      <View style={[styles.filterBarContainer, { top: topOffset }]}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterBarContent}
+        >
+          {filterOptions.map((opt) => {
+            const isSelected = selectedType === opt.value;
+            const count =
+              opt.value === 'ALL'
+                ? assets.length
+                : assets.filter((a) => a.type === opt.value).length;
+
+            return (
+              <TouchableOpacity
+                key={opt.value}
+                onPress={() => handleSelectType(opt.value)}
+                style={[
+                  styles.filterChip,
+                  isSelected ? styles.filterChipActive : styles.filterChipInactive,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={`${opt.label}, ${count}`}
+                accessibilityState={{ selected: isSelected }}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    isSelected
+                      ? styles.filterChipTextActive
+                      : styles.filterChipTextInactive,
+                  ]}
+                >
+                  {opt.label}
+                </Text>
+                {count > 0 ? (
+                  <View
+                    style={[
+                      styles.filterChipBadge,
+                      isSelected
+                        ? styles.filterChipBadgeActive
+                        : styles.filterChipBadgeInactive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipBadgeText,
+                        isSelected
+                          ? styles.filterChipBadgeTextActive
+                          : styles.filterChipBadgeTextInactive,
+                      ]}
+                    >
+                      {count}
+                    </Text>
+                  </View>
+                ) : null}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {/* Empty Filter Pill if selected type has 0 mapped assets */}
+      {selectedType !== 'ALL' && displayedAssets.length === 0 && !loading ? (
+        <View style={[styles.emptyTypePill, { top: topOffset + 50 }]}>
+          <Ionicons
+            name="information-circle-outline"
+            size={16}
+            color={colors.muted}
+            style={styles.emptyTypePillIcon}
+          />
+          <Text style={styles.emptyTypePillText}>
+            {strings.noTypeAssetsOnMap.replace('{type}', typeLabel(selectedType))}
+          </Text>
+        </View>
+      ) : null}
+
       {/* Loading Indicator */}
       {loading && assets.length === 0 ? (
         <View style={styles.loadingOverlay}>
@@ -203,9 +310,9 @@ export default function AssetMapScreen({ navigation }) {
         </View>
       ) : null}
 
-      {/* Empty State Banner (No assets with coordinates) */}
+      {/* Empty State Banner (No assets with coordinates in GP) */}
       {!loading && assets.length === 0 ? (
-        <View style={styles.emptyBanner}>
+        <View style={[styles.emptyBanner, { top: topOffset + 54 }]}>
           <Ionicons
             name="location-outline"
             size={22}
@@ -218,8 +325,8 @@ export default function AssetMapScreen({ navigation }) {
         </View>
       ) : null}
 
-      {/* Legend Overlay in top corner */}
-      <View style={styles.legendContainer}>
+      {/* Legend Overlay in top corner below filter bar */}
+      <View style={[styles.legendContainer, { top: topOffset + 52 }]}>
         <Text style={styles.legendTitle}>{strings.legendTitle}</Text>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: '#22c55e' }]} />
@@ -291,9 +398,101 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  filterBarContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  filterBarContent: {
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 36,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  filterChipActive: {
+    backgroundColor: colors.primary,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  filterChipInactive: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  filterChipText: {
+    fontSize: 13,
+  },
+  filterChipTextActive: {
+    color: colors.white,
+    fontWeight: '700',
+  },
+  filterChipTextInactive: {
+    color: colors.text,
+    fontWeight: '500',
+  },
+  filterChipBadge: {
+    marginLeft: spacing.xs + 2,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: radius.pill,
+  },
+  filterChipBadgeActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+  },
+  filterChipBadgeInactive: {
+    backgroundColor: colors.pressed,
+  },
+  filterChipBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  filterChipBadgeTextActive: {
+    color: colors.white,
+  },
+  filterChipBadgeTextInactive: {
+    color: colors.muted,
+  },
+  emptyTypePill: {
+    position: 'absolute',
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+    zIndex: 5,
+  },
+  emptyTypePillIcon: {
+    marginRight: spacing.xs,
+  },
+  emptyTypePillText: {
+    fontSize: 12,
+    color: colors.muted,
+    fontWeight: '500',
+  },
   emptyBanner: {
     position: 'absolute',
-    top: spacing.lg,
     left: spacing.lg,
     right: spacing.lg,
     backgroundColor: colors.white,
@@ -308,6 +507,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    zIndex: 5,
   },
   emptyBannerIcon: {
     marginRight: spacing.sm,
@@ -320,7 +520,6 @@ const styles = StyleSheet.create({
   },
   legendContainer: {
     position: 'absolute',
-    top: spacing.md,
     right: spacing.md,
     backgroundColor: colors.white,
     borderRadius: radius.md,
@@ -333,6 +532,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    zIndex: 4,
   },
   legendTitle: {
     fontSize: 12,
@@ -390,6 +590,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 5,
+    zIndex: 20,
   },
   previewCardHeader: {
     flexDirection: 'row',
