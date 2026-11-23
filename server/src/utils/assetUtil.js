@@ -423,6 +423,43 @@ const listAssetsQuerySchema = z.object({
   }, z.number({ invalid_type_error: 'Limit must be an integer' }).int().min(1, 'Limit must be at least 1').max(100, 'Limit cannot exceed 100').default(50)),
 });
 
+// Schema for creating an asset event (history note/repair/inspection)
+const createAssetEventSchema = z.object({
+  kind: z
+    .string({
+      required_error: 'Kind is required',
+      invalid_type_error: 'Kind must be a string',
+    })
+    .trim()
+    .refine(
+      (val) => {
+        const upper = val.toUpperCase();
+        return upper === 'REPAIR' || upper === 'INSPECTION' || upper === 'NOTE';
+      },
+      {
+        message: 'Kind must be one of Repair, Inspection, or Note',
+      }
+    ),
+  note: z
+    .string({
+      required_error: 'Note is required',
+      invalid_type_error: 'Note must be a string',
+    })
+    .trim()
+    .min(1, 'Note cannot be empty')
+    .max(2000, 'Note cannot exceed 2000 characters'),
+  photoUrl: z
+    .string({ invalid_type_error: 'photoUrl must be a string' })
+    .trim()
+    .nullable()
+    .optional(),
+  photo: z
+    .string({ invalid_type_error: 'photo must be a string' })
+    .trim()
+    .nullable()
+    .optional(),
+});
+
 module.exports = {
   ASSET_TYPES,
   ASSET_STATUSES,
@@ -431,4 +468,5 @@ module.exports = {
   updateAssetSchema,
   listAssetsQuerySchema,
   photoSchema,
+  createAssetEventSchema,
 };

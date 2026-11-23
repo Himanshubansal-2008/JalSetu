@@ -4,6 +4,7 @@ const {
   createAssetSchema,
   updateAssetSchema,
   listAssetsQuerySchema,
+  createAssetEventSchema,
   sanitizeAttributes,
 } = require('../utils/assetUtil');
 
@@ -122,6 +123,7 @@ async function getAsset(req, res, next) {
             id: true,
             kind: true,
             note: true,
+            photo: true,
             createdAt: true,
             createdBy: {
               select: {
@@ -141,8 +143,20 @@ async function getAsset(req, res, next) {
       return res.status(404).json({ error: 'Asset not found' });
     }
 
-    // 4. Return asset including events history
-    return res.status(200).json({ asset });
+    // 4. Return asset including events history with photoUrl, timestamp, authorName
+    const events = asset.events.map((e) => ({
+      ...e,
+      photoUrl: e.photo,
+      timestamp: e.createdAt,
+      authorName: e.createdBy ? e.createdBy.name : null,
+    }));
+
+    return res.status(200).json({
+      asset: {
+        ...asset,
+        events,
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -292,10 +306,83 @@ async function deleteAsset(req, res, next) {
   }
 }
 
+// Add a history event (repair, inspection, note) to an asset
+async function addAssetEvent(req, res, next) {
+  try {
+    // 1. Validate asset id as UUID
+    const parsedId = idParamSchema.safeParse(req.params.id);
+    if (!parsedId.success) {
+      return res.status(400).json({ error: 'Invalid asset id' });
+    }
+
+    const { id } = req.params;
+
+    // 2. Validate request body
+    const parsed = createAssetEventSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0].message });
+    }
+
+    // 3. Verify target asset exists and belongs to logged-in user's GP
+    const existingAsset = await prisma.asset.findFirst({
+      where: {
+        id,
+        gpId: req.user.gpId,
+      },
+    });
+
+    if (!existingAsset) {
+      return res.status(404).json({ error: 'Asset not found' });
+    }
+
+    // 4. Resolve normalized kind and photo
+    const normalizedKind = parsed.data.kind.toUpperCase();
+    const photo = parsed.data.photoUrl || parsed.data.photo || null;
+
+    // 5. Create event in database
+    const event = await prisma.assetEvent.create({
+      data: {
+        assetId: existingAsset.id,
+        createdById: req.user.id,
+        kind: normalizedKind,
+        note: parsed.data.note,
+        photo,
+      },
+      select: {
+        id: true,
+        assetId: true,
+        createdById: true,
+        kind: true,
+        note: true,
+        photo: true,
+        createdAt: true,
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    return res.status(201).json({
+      event: {
+        ...event,
+        photoUrl: event.photo,
+        timestamp: event.createdAt,
+        authorName: event.createdBy ? event.createdBy.name : null,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   createAsset,
   listAssets,
   getAsset,
   updateAsset,
   deleteAsset,
+  addAssetEvent,
 };
