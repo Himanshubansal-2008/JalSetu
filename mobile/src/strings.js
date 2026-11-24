@@ -304,4 +304,12 @@ export const strings = {
   noInventoryMatch: 'No items match your filter',
   itemCountSingular: '1 item',
   itemCountPlural: '{count} items',
+  stockHistory: 'Stock History',
+  stockHistoryCount: 'Stock History ({count})',
+  useStock: 'Use Stock',
+  addStock: 'Add Stock',
+  currentStock: 'Current Stock',
+  noStockHistoryYet: 'No stock transactions recorded yet.',
+  stockInTitle: 'Stock IN',
+  stockOutTitle: 'Stock OUT',
 };

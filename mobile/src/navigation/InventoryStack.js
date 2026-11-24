@@ -8,6 +8,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import InventoryListScreen from '../screens/InventoryListScreen';
 import InventoryDetailScreen from '../screens/InventoryDetailScreen';
 import InventoryFormScreen from '../screens/InventoryFormScreen';
+import StockInScreen from '../screens/StockInScreen';
+import StockOutScreen from '../screens/StockOutScreen';
 import { strings } from '../strings';
 import { colors } from '../theme';
 
@@ -52,6 +54,24 @@ export default function InventoryStack() {
             route.params?.mode === 'edit'
               ? strings.editInventoryItem
               : strings.addInventoryItem,
+        })}
+      />
+      <Stack.Screen
+        name="StockIn"
+        component={StockInScreen}
+        options={({ route }) => ({
+          title: route.params?.name
+            ? `${strings.stockInTitle} · ${route.params.name}`
+            : strings.stockInTitle,
+        })}
+      />
+      <Stack.Screen
+        name="StockOut"
+        component={StockOutScreen}
+        options={({ route }) => ({
+          title: route.params?.name
+            ? `${strings.stockOutTitle} · ${route.params.name}`
+            : strings.stockOutTitle,
         })}
       />
     </Stack.Navigator>
