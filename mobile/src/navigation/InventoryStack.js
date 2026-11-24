@@ -46,9 +46,12 @@ export default function InventoryStack() {
         component={InventoryFormScreen}
         options={({ route }) => ({
           title:
+            route.params?.item ||
+            route.params?.itemId ||
+            route.params?.id ||
             route.params?.mode === 'edit'
-              ? 'Edit Item'
-              : strings.addItemTitle,
+              ? strings.editInventoryItem
+              : strings.addInventoryItem,
         })}
       />
     </Stack.Navigator>
