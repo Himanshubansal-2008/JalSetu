@@ -271,4 +271,19 @@ export const strings = {
   mapsErrorTitle: 'Unable to Open Maps',
   mapsErrorMessage:
     'Could not open Google Maps or web browser on this device.',
+
+  // Inventory
+  inventoryTitle: 'Inventory',
+  addItem: '+ Add item',
+  addItemTitle: 'New Inventory Item',
+  inventoryDetailTitle: 'Item Details',
+  searchInventoryPlaceholder: 'Search items by name...',
+  lowStockOnly: 'Low stock only',
+  lowStockBadge: 'Low stock',
+  lowStockBannerSingular: '⚠️ 1 item at or below reorder level',
+  lowStockBannerPlural: '⚠️ {count} items at or below reorder level',
+  noInventoryYet: 'No inventory items yet',
+  noInventoryMatch: 'No items match your filter',
+  itemCountSingular: '1 item',
+  itemCountPlural: '{count} items',
 };

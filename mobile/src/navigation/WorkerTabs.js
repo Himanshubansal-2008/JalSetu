@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import PlaceholderScreen from '../screens/PlaceholderScreen';
 import AssetsStack from './AssetsStack';
 import AssetMapScreen from '../screens/AssetMapScreen';
+import InventoryStack from './InventoryStack';
 import { strings } from '../strings';
 import { colors } from '../theme';
 
@@ -42,7 +43,11 @@ export default function WorkerTabs() {
         component={AssetMapScreen}
         options={{ title: strings.assetsMap }}
       />
-      <Tab.Screen name={strings.inventory} component={PlaceholderScreen} />
+      <Tab.Screen
+        name={strings.inventory}
+        component={InventoryStack}
+        options={{ headerShown: false }}
+      />
     </Tab.Navigator>
   );
 }
