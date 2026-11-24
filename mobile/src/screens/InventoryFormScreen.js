@@ -2,7 +2,7 @@
  * InventoryFormScreen.js
  * Single reusable form screen for creating and editing inventory items (Admin only).
  * Handles create vs. edit mode detection, client validation, unit presets,
- * read-only quantity in edit mode, loading states, and error alerts.
+ * read-only quantity in edit mode, admin-only delete flow, loading states, and error alerts.
  */
 
 import React, { useState, useEffect, useLayoutEffect } from 'react';
@@ -14,6 +14,7 @@ import {
   Platform,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +22,7 @@ import apiClient, { getErrorMessage } from '../api/apiClient';
 import { useAuthStore } from '../store/authStore';
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
+import EmptyState from '../components/EmptyState';
 import { strings } from '../strings';
 import { colors, tones, spacing, radius } from '../theme';
 
@@ -51,9 +53,13 @@ export default function InventoryFormScreen({ route, navigation }) {
       : '0'
   );
 
+  // Full item state (includes transactions count if fetched)
+  const [loadedItem, setLoadedItem] = useState(passedItem || null);
+
   // Validation & async submission states
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [loadingItem, setLoadingItem] = useState(isEdit && !passedItem);
 
@@ -75,15 +81,16 @@ export default function InventoryFormScreen({ route, navigation }) {
         .get(`/inventory/${itemId}`)
         .then((response) => {
           if (!isMounted) return;
-          const item = response.data?.item;
-          if (item) {
-            setName(item.name || '');
-            setUnit(item.unit || '');
+          const it = response.data?.item;
+          if (it) {
+            setLoadedItem(it);
+            setName(it.name || '');
+            setUnit(it.unit || '');
             setQuantity(
-              item.quantity !== undefined ? String(item.quantity) : '0'
+              it.quantity !== undefined ? String(it.quantity) : '0'
             );
             setReorderLevel(
-              item.reorderLevel !== undefined ? String(item.reorderLevel) : '0'
+              it.reorderLevel !== undefined ? String(it.reorderLevel) : '0'
             );
           }
         })
@@ -104,6 +111,20 @@ export default function InventoryFormScreen({ route, navigation }) {
       };
     }
   }, [isEdit, passedItem, itemId]);
+
+  // Route / Screen Guard: Block non-admins completely from creating/editing inventory
+  if (!isAdmin) {
+    return (
+      <View style={styles.centered}>
+        <EmptyState
+          message={strings.adminAccessRequiredInventory}
+          actionLabel="Go Back"
+          onAction={() => navigation.goBack()}
+          icon="lock-closed-outline"
+        />
+      </View>
+    );
+  }
 
   // Field change handlers with automatic error clearing
   const handleNameChange = (val) => {
@@ -193,12 +214,7 @@ export default function InventoryFormScreen({ route, navigation }) {
 
   // Submit handler
   const handleSave = async () => {
-    if (submitting) return;
-
-    if (!isAdmin) {
-      setSubmitError(strings.onlyAdminCanManageInventory);
-      return;
-    }
+    if (submitting || deleting) return;
 
     if (!validate()) {
       return;
@@ -240,6 +256,63 @@ export default function InventoryFormScreen({ route, navigation }) {
     }
   };
 
+  // Check if item has transactions
+  const txns = loadedItem?.transactions || loadedItem?.txns || [];
+  const hasHistory = txns.length > 0;
+
+  // Perform delete operation
+  const performDelete = async () => {
+    setDeleting(true);
+    setSubmitError('');
+
+    try {
+      await apiClient.delete(`/inventory/${itemId}`);
+      // Navigate all the way back to Inventory List
+      navigation.navigate('InventoryList');
+    } catch (err) {
+      if (err?.response?.status === 401) {
+        useAuthStore.getState().logout();
+        return;
+      }
+      const msg =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        getErrorMessage(err);
+
+      Alert.alert(strings.deleteFailedTitle, msg, [{ text: strings.ok }]);
+      setSubmitError(msg);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Handle Delete button press with history guard
+  const handleDeletePress = () => {
+    if (deleting || submitting) return;
+
+    if (hasHistory) {
+      Alert.alert(
+        strings.cannotDeleteTitle,
+        strings.cannotDeleteHistoryExplanation,
+        [{ text: strings.ok }]
+      );
+      return;
+    }
+
+    Alert.alert(
+      strings.deleteItemConfirmTitle.replace('{name}', name || 'this item'),
+      strings.deleteItemConfirmMessage,
+      [
+        { text: strings.cancel, style: 'cancel' },
+        {
+          text: strings.delete,
+          style: 'destructive',
+          onPress: performDelete,
+        },
+      ]
+    );
+  };
+
   // Loading spinner if pre-fetching item in edit mode
   if (loadingItem) {
     return (
@@ -258,21 +331,6 @@ export default function InventoryFormScreen({ route, navigation }) {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Admin guard warning banner if non-admin accesses form */}
-        {!isAdmin ? (
-          <View style={styles.adminBanner}>
-            <Ionicons
-              name="lock-closed"
-              size={18}
-              color={tones.danger.fg}
-              style={styles.bannerIcon}
-            />
-            <Text style={styles.adminBannerText}>
-              {strings.onlyAdminCanManageInventory}
-            </Text>
-          </View>
-        ) : null}
-
         {/* Backend validation / submission error banner */}
         {submitError ? (
           <View style={styles.errorBanner}>
@@ -294,7 +352,7 @@ export default function InventoryFormScreen({ route, navigation }) {
           onChangeText={handleNameChange}
           placeholder={strings.itemNamePlaceholder}
           error={errors.name}
-          editable={isAdmin && !submitting}
+          editable={!submitting && !deleting}
         />
 
         {/* Unit Field with Quick-Tap Presets */}
@@ -306,7 +364,7 @@ export default function InventoryFormScreen({ route, navigation }) {
             onChangeText={handleUnitChange}
             placeholder={strings.unitPlaceholder}
             error={errors.unit}
-            editable={isAdmin && !submitting}
+            editable={!submitting && !deleting}
           />
 
           {/* Quick preset pills */}
@@ -323,7 +381,7 @@ export default function InventoryFormScreen({ route, navigation }) {
                       isSelected && styles.presetPillSelected,
                     ]}
                     onPress={() => handleSelectPresetUnit(preset)}
-                    disabled={!isAdmin || submitting}
+                    disabled={submitting || deleting}
                     activeOpacity={0.7}
                     accessibilityRole="button"
                     accessibilityLabel={preset}
@@ -346,9 +404,7 @@ export default function InventoryFormScreen({ route, navigation }) {
         {/* Opening Quantity Field */}
         {isEdit ? (
           <View style={styles.readOnlyFieldWrapper}>
-            <Text style={styles.fieldLabel}>
-              {strings.quantityLabel}
-            </Text>
+            <Text style={styles.fieldLabel}>{strings.quantityLabel}</Text>
             <View style={styles.readOnlyInput}>
               <Text style={styles.readOnlyInputText}>
                 {quantity} {unit ? unit : ''}
@@ -366,9 +422,7 @@ export default function InventoryFormScreen({ route, navigation }) {
                 color={colors.muted}
                 style={{ marginRight: 4 }}
               />
-              <Text style={styles.helperNote}>
-                {strings.quantityLockedHint}
-              </Text>
+              <Text style={styles.helperNote}>{strings.quantityLockedHint}</Text>
             </View>
           </View>
         ) : (
@@ -380,7 +434,7 @@ export default function InventoryFormScreen({ route, navigation }) {
             placeholder={strings.quantityPlaceholder}
             keyboardType="numeric"
             error={errors.quantity}
-            editable={isAdmin && !submitting}
+            editable={!submitting}
           />
         )}
 
@@ -394,7 +448,7 @@ export default function InventoryFormScreen({ route, navigation }) {
           keyboardType="numeric"
           hint={strings.reorderLevelHint}
           error={errors.reorderLevel}
-          editable={isAdmin && !submitting}
+          editable={!submitting && !deleting}
         />
 
         {/* Submit Button */}
@@ -403,10 +457,62 @@ export default function InventoryFormScreen({ route, navigation }) {
             title={strings.saveItem}
             onPress={handleSave}
             loading={submitting}
-            disabled={!isAdmin || submitting}
+            disabled={submitting || deleting}
             variant="primary"
           />
         </View>
+
+        {/* Destructive Delete Button (Edit mode only) */}
+        {isEdit ? (
+          <View style={styles.deleteSection}>
+            <TouchableOpacity
+              style={[
+                styles.deleteButton,
+                hasHistory ? styles.deleteButtonDisabled : null,
+              ]}
+              onPress={handleDeletePress}
+              disabled={deleting || submitting}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={strings.deleteItem}
+            >
+              {deleting ? (
+                <ActivityIndicator size="small" color={colors.danger} />
+              ) : (
+                <>
+                  <Ionicons
+                    name="trash-outline"
+                    size={18}
+                    color={hasHistory ? colors.muted : colors.danger}
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text
+                    style={[
+                      styles.deleteButtonText,
+                      hasHistory ? styles.deleteButtonTextDisabled : null,
+                    ]}
+                  >
+                    {strings.deleteItem}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            {hasHistory ? (
+              <View style={styles.deleteNoticeRow}>
+                <Ionicons
+                  name="information-circle-outline"
+                  size={14}
+                  color={colors.muted}
+                  style={{ marginRight: 4 }}
+                />
+                <Text style={styles.deleteNoticeText}>
+                  {strings.itemsWithHistoryCannotBeDeleted}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -422,26 +528,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: spacing.xl,
   },
   scrollContent: {
     padding: spacing.lg,
     paddingBottom: spacing.xl * 2,
-  },
-  adminBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: tones.danger.bg,
-    borderWidth: 1,
-    borderColor: tones.danger.fg,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  adminBannerText: {
-    color: tones.danger.fg,
-    fontSize: 13,
-    fontWeight: '600',
-    flex: 1,
   },
   errorBanner: {
     flexDirection: 'row',
@@ -537,5 +628,43 @@ const styles = StyleSheet.create({
   },
   submitSection: {
     marginTop: spacing.lg,
+  },
+  deleteSection: {
+    marginTop: spacing.xl,
+    paddingTop: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 48,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.danger,
+    backgroundColor: colors.white,
+  },
+  deleteButtonDisabled: {
+    borderColor: colors.border,
+    backgroundColor: '#F5F5F5',
+  },
+  deleteButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.danger,
+  },
+  deleteButtonTextDisabled: {
+    color: colors.muted,
+  },
+  deleteNoticeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.sm,
+  },
+  deleteNoticeText: {
+    fontSize: 12,
+    color: colors.muted,
   },
 });

@@ -2,7 +2,7 @@
  * InventoryDetailScreen.js
  * Screen displaying full inventory item details, stock summary, role-based
  * Stock IN / OUT action buttons, newest-first transaction history feed,
- * and admin edit trigger in header.
+ * and admin edit/delete triggers with history guard and confirmation dialog.
  */
 
 import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
@@ -13,6 +13,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   TouchableOpacity,
+  Alert,
   StyleSheet,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -40,6 +41,7 @@ export default function InventoryDetailScreen({ route, navigation }) {
   const [item, setItem] = useState(route?.params?.item || null);
   const [initialLoading, setInitialLoading] = useState(!route?.params?.item);
   const [refreshing, setRefreshing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [initialError, setInitialError] = useState('');
   const [reloadError, setReloadError] = useState('');
   const [notFound, setNotFound] = useState(false);
@@ -57,32 +59,108 @@ export default function InventoryDetailScreen({ route, navigation }) {
     };
   }, []);
 
-  // Header configuration: Title & Admin-only Edit button
+  const transactions = item?.transactions || item?.txns || [];
+  const hasHistory = transactions.length > 0;
+  const isLowStock =
+    Boolean(item?.isLowStock) ||
+    (item && item.quantity <= item.reorderLevel);
+
+  // Delete inventory item handler (Admin only, protected against history)
+  const performDelete = async () => {
+    if (deleting || !item) return;
+
+    setDeleting(true);
+    setReloadError('');
+
+    try {
+      await apiClient.delete(`/inventory/${item.id}`);
+      navigation.goBack();
+    } catch (err) {
+      if (err?.response?.status === 401) {
+        useAuthStore.getState().logout();
+        return;
+      }
+      const msg =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        getErrorMessage(err);
+
+      Alert.alert(strings.deleteFailedTitle, msg, [{ text: strings.ok }]);
+    } finally {
+      if (isMountedRef.current) {
+        setDeleting(false);
+      }
+    }
+  };
+
+  const handleDeletePress = () => {
+    if (deleting || !item) return;
+
+    if (hasHistory) {
+      Alert.alert(
+        strings.cannotDeleteTitle,
+        strings.cannotDeleteHistoryExplanation,
+        [{ text: strings.ok }]
+      );
+      return;
+    }
+
+    Alert.alert(
+      strings.deleteItemConfirmTitle.replace('{name}', item.name),
+      strings.deleteItemConfirmMessage,
+      [
+        { text: strings.cancel, style: 'cancel' },
+        {
+          text: strings.delete,
+          style: 'destructive',
+          onPress: performDelete,
+        },
+      ]
+    );
+  };
+
+  // Header configuration: Title & Admin-only Edit/Delete buttons
   useLayoutEffect(() => {
     navigation.setOptions({
       title: item?.name || initialName || strings.inventoryDetailTitle,
       headerRight:
         isAdmin && item
           ? () => (
-              <TouchableOpacity
-                onPress={() =>
-                  navigation.navigate('InventoryForm', {
-                    itemId: item.id,
-                    id: item.id,
-                    item,
-                    mode: 'edit',
-                  })
-                }
-                style={styles.headerButton}
-                accessibilityRole="button"
-                accessibilityLabel={strings.edit}
-              >
-                <Text style={styles.headerButtonText}>{strings.edit}</Text>
-              </TouchableOpacity>
+              <View style={styles.headerRightActions}>
+                <TouchableOpacity
+                  onPress={() =>
+                    navigation.navigate('InventoryForm', {
+                      itemId: item.id,
+                      id: item.id,
+                      item,
+                      mode: 'edit',
+                    })
+                  }
+                  style={styles.headerButton}
+                  accessibilityRole="button"
+                  accessibilityLabel={strings.edit}
+                >
+                  <Text style={styles.headerButtonText}>{strings.edit}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={handleDeletePress}
+                  style={styles.headerIconButton}
+                  disabled={deleting}
+                  accessibilityRole="button"
+                  accessibilityLabel={strings.deleteItem}
+                >
+                  <Ionicons
+                    name="trash-outline"
+                    size={20}
+                    color={hasHistory ? colors.muted : colors.danger}
+                  />
+                </TouchableOpacity>
+              </View>
             )
           : null,
     });
-  }, [navigation, isAdmin, item, initialName]);
+  }, [navigation, isAdmin, item, initialName, hasHistory, deleting]);
 
   // Fetch inventory item with full stock transactions
   const fetchItem = useCallback(
@@ -191,11 +269,6 @@ export default function InventoryDetailScreen({ route, navigation }) {
       </View>
     );
   }
-
-  const transactions = item?.transactions || item?.txns || [];
-  const isLowStock =
-    Boolean(item?.isLowStock) ||
-    (item && item.quantity <= item.reorderLevel);
 
   return (
     <ScrollView
@@ -438,6 +511,58 @@ export default function InventoryDetailScreen({ route, navigation }) {
           </View>
         )}
       </View>
+
+      {/* Admin Delete Section at bottom of detail screen */}
+      {isAdmin ? (
+        <View style={styles.deleteSection}>
+          <TouchableOpacity
+            style={[
+              styles.deleteButton,
+              hasHistory ? styles.deleteButtonDisabled : null,
+            ]}
+            onPress={handleDeletePress}
+            disabled={deleting}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={strings.deleteItem}
+          >
+            {deleting ? (
+              <ActivityIndicator size="small" color={colors.danger} />
+            ) : (
+              <>
+                <Ionicons
+                  name="trash-outline"
+                  size={18}
+                  color={hasHistory ? colors.muted : colors.danger}
+                  style={{ marginRight: 6 }}
+                />
+                <Text
+                  style={[
+                    styles.deleteButtonText,
+                    hasHistory ? styles.deleteButtonTextDisabled : null,
+                  ]}
+                >
+                  {strings.deleteItem}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          {hasHistory ? (
+            <View style={styles.deleteNoticeRow}>
+              <Ionicons
+                name="information-circle-outline"
+                size={14}
+                color={colors.muted}
+                style={{ marginRight: 4 }}
+              />
+              <Text style={styles.deleteNoticeText}>
+                {strings.itemsWithHistoryCannotBeDeleted}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
     </ScrollView>
   );
 }
@@ -458,6 +583,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: spacing.xl,
   },
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   headerButton: {
     minHeight: 44,
     minWidth: 44,
@@ -469,6 +598,14 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 16,
     fontWeight: '600',
+  },
+  headerIconButton: {
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xs,
+    marginLeft: 2,
   },
   reloadErrorBanner: {
     flexDirection: 'row',
@@ -700,6 +837,44 @@ const styles = StyleSheet.create({
   },
   txnUserText: {
     fontSize: 11,
+    color: colors.muted,
+  },
+  deleteSection: {
+    marginTop: spacing.xl,
+    paddingTop: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 48,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.danger,
+    backgroundColor: colors.white,
+  },
+  deleteButtonDisabled: {
+    borderColor: colors.border,
+    backgroundColor: '#F5F5F5',
+  },
+  deleteButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.danger,
+  },
+  deleteButtonTextDisabled: {
+    color: colors.muted,
+  },
+  deleteNoticeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.sm,
+  },
+  deleteNoticeText: {
+    fontSize: 12,
     color: colors.muted,
   },
 });

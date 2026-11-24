@@ -2,6 +2,7 @@
  * StockTransactionScreen.js
  * Unified form screen for recording Stock IN and Stock OUT transactions.
  * Features:
+ * - Admin route/screen guard: Non-admins blocked from Stock IN
  * - Available stock status banner
  * - Quantity numeric input with adjacent unit label
  * - Client-side validation: Number(quantity) > 0
@@ -31,6 +32,7 @@ import apiClient, { getErrorMessage } from '../api/apiClient';
 import { useAuthStore } from '../store/authStore';
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
+import EmptyState from '../components/EmptyState';
 import { typeLabel } from '../utils/assetUtil';
 import { strings } from '../strings';
 import { colors, tones, spacing, radius } from '../theme';
@@ -51,6 +53,12 @@ export default function StockTransactionScreen({
     availableQuantity: paramAvailableQuantity,
     mode: paramMode,
   } = route.params || {};
+
+  const user = useAuthStore((state) => state.user);
+  const isAdmin =
+    user?.role === 'ADMIN' ||
+    user?.role === 'admin' ||
+    user?.role?.toUpperCase() === 'ADMIN';
 
   const itemId = paramItemId || paramId || paramItem?.id;
   const itemName = paramItemName || paramName || paramItem?.name || 'Item';
@@ -88,6 +96,20 @@ export default function StockTransactionScreen({
         : `Use Stock — ${itemName}`,
     });
   }, [navigation, isStockIn, itemName]);
+
+  // Route / Screen Guard: Non-admins cannot access Stock IN
+  if (isStockIn && !isAdmin) {
+    return (
+      <View style={styles.centered}>
+        <EmptyState
+          message={strings.adminAccessRequiredStockIn}
+          actionLabel="Go Back"
+          onAction={() => navigation.goBack()}
+          icon="lock-closed-outline"
+        />
+      </View>
+    );
+  }
 
   // Fetch GP assets for Stock OUT dropdown
   useEffect(() => {
@@ -157,6 +179,13 @@ export default function StockTransactionScreen({
   // Submit transaction
   const handleSubmit = async () => {
     if (submitting) return;
+
+    if (isStockIn && !isAdmin) {
+      Alert.alert(strings.adminAccessRequired, strings.adminAccessRequiredStockIn, [
+        { text: strings.ok },
+      ]);
+      return;
+    }
 
     setQuantityTouched(true);
     if (!isQuantityValid) {
@@ -506,6 +535,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  centered: {
+    flex: 1,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
   },
   scrollContent: {
     padding: spacing.lg,

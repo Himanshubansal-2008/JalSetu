@@ -326,4 +326,17 @@ export const strings = {
   recordStockIn: 'Record Stock IN',
   recordStockOut: 'Record Stock OUT',
   transactionFailedTitle: 'Transaction Failed',
+  deleteItem: 'Delete Item',
+  deleteItemConfirmTitle: 'Delete {name}?',
+  deleteItemConfirmMessage:
+    'Are you sure you want to delete this inventory item? This action cannot be undone.',
+  itemsWithHistoryCannotBeDeleted: 'Items with stock history cannot be deleted',
+  adminAccessRequired: 'Admin access required',
+  adminAccessRequiredInventory:
+    'Admin access required to create or edit inventory items.',
+  adminAccessRequiredStockIn: 'Admin access required to record Stock IN.',
+  deleteFailedTitle: 'Delete Failed',
+  cannotDeleteTitle: 'Cannot Delete Item',
+  cannotDeleteHistoryExplanation:
+    'Items with stock transaction history cannot be deleted to preserve audit records.',
 };
