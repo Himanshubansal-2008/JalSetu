@@ -156,6 +156,7 @@ model LedgerEntry {
   mode        String?    // CASH, UPI, CHEQUE
   reference   String?
   voided      Boolean    @default(false)
+  isSystem    Boolean    @default(false)
   assetId     String?
   billId      String?    @unique
   createdById String
