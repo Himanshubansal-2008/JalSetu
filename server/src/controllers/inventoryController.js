@@ -68,7 +68,7 @@ async function listInventoryItems(req, res, next) {
   }
 }
 
-// Get single inventory item by ID
+// Get single inventory item by ID with full transaction history
 async function getInventoryItem(req, res, next) {
   try {
     const parsedId = idParamSchema.safeParse(req.params.id);
@@ -83,16 +83,62 @@ async function getInventoryItem(req, res, next) {
         id,
         gpId: req.user.gpId,
       },
+      include: {
+        txns: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            type: true,
+            quantity: true,
+            note: true,
+            createdAt: true,
+            createdBy: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            asset: {
+              select: {
+                id: true,
+                name: true,
+                type: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!item) {
       return res.status(404).json({ error: 'Inventory item not found' });
     }
 
+    const transactions = item.txns.map((t) => ({
+      id: t.id,
+      type: t.type,
+      quantity: t.quantity,
+      note: t.note,
+      createdAt: t.createdAt,
+      user: t.createdBy ? { id: t.createdBy.id, name: t.createdBy.name } : null,
+      createdBy: t.createdBy ? { id: t.createdBy.id, name: t.createdBy.name } : null,
+      asset: t.asset
+        ? { id: t.asset.id, name: t.asset.name, type: t.asset.type }
+        : null,
+    }));
+
     return res.status(200).json({
       item: {
-        ...item,
+        id: item.id,
+        gpId: item.gpId,
+        name: item.name,
+        unit: item.unit,
+        quantity: item.quantity,
+        reorderLevel: item.reorderLevel,
+        createdAt: item.createdAt,
         isLowStock: item.quantity <= item.reorderLevel,
+        txns: transactions,
+        transactions,
       },
     });
   } catch (err) {
