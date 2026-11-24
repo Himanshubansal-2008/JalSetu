@@ -78,9 +78,48 @@ const listInventoryQuerySchema = z.object({
     }),
 });
 
+// Schema for Stock IN transaction
+const stockInSchema = z.object({
+  quantity: z
+    .number({
+      required_error: 'Quantity is required',
+      invalid_type_error: 'Quantity must be a number',
+    })
+    .positive('Quantity must be greater than 0'),
+  note: z
+    .string({ invalid_type_error: 'Note must be a string' })
+    .trim()
+    .max(1000, 'Note cannot exceed 1000 characters')
+    .nullable()
+    .optional(),
+});
+
+// Schema for Stock OUT transaction
+const stockOutSchema = z.object({
+  quantity: z
+    .number({
+      required_error: 'Quantity is required',
+      invalid_type_error: 'Quantity must be a number',
+    })
+    .positive('Quantity must be greater than 0'),
+  note: z
+    .string({ invalid_type_error: 'Note must be a string' })
+    .trim()
+    .max(1000, 'Note cannot exceed 1000 characters')
+    .nullable()
+    .optional(),
+  assetId: z
+    .string({ invalid_type_error: 'assetId must be a string' })
+    .uuid({ message: 'Invalid asset id' })
+    .nullable()
+    .optional(),
+});
+
 module.exports = {
   idParamSchema,
   createInventoryItemSchema,
   updateInventoryItemSchema,
   listInventoryQuerySchema,
+  stockInSchema,
+  stockOutSchema,
 };

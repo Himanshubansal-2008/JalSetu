@@ -4,6 +4,8 @@ const {
   createInventoryItemSchema,
   updateInventoryItemSchema,
   listInventoryQuerySchema,
+  stockInSchema,
+  stockOutSchema,
 } = require('../utils/inventoryUtil');
 
 // List inventory items with optional search and lowStockOnly filter
@@ -226,10 +228,183 @@ async function deleteInventoryItem(req, res, next) {
   }
 }
 
+// Stock IN (Admin only): Increment quantity and record StockTxn
+async function stockIn(req, res, next) {
+  try {
+    const parsedId = idParamSchema.safeParse(req.params.id);
+    if (!parsedId.success) {
+      return res.status(400).json({ error: 'Invalid item id' });
+    }
+
+    const parsed = stockInSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0].message });
+    }
+
+    const { id } = req.params;
+    const { quantity, note } = parsed.data;
+
+    // Verify item exists and belongs to logged-in user's GP
+    const existing = await prisma.inventoryItem.findFirst({
+      where: {
+        id,
+        gpId: req.user.gpId,
+      },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Inventory item not found' });
+    }
+
+    // Run inside a single prisma.$transaction
+    const [updatedItem, transaction] = await prisma.$transaction(async (tx) => {
+      const item = await tx.inventoryItem.update({
+        where: { id: existing.id },
+        data: {
+          quantity: {
+            increment: quantity,
+          },
+        },
+      });
+
+      const txn = await tx.stockTxn.create({
+        data: {
+          itemId: existing.id,
+          type: 'IN',
+          quantity,
+          note: note && note.trim() ? note.trim() : null,
+          createdById: req.user.id,
+        },
+      });
+
+      return [item, txn];
+    });
+
+    return res.status(201).json({
+      item: {
+        ...updatedItem,
+        isLowStock: updatedItem.quantity <= updatedItem.reorderLevel,
+      },
+      transaction,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Stock OUT (Admin and Worker): Decrement quantity with atomic negative-stock guard
+async function stockOut(req, res, next) {
+  try {
+    const parsedId = idParamSchema.safeParse(req.params.id);
+    if (!parsedId.success) {
+      return res.status(400).json({ error: 'Invalid item id' });
+    }
+
+    const parsed = stockOutSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0].message });
+    }
+
+    const { id } = req.params;
+    const { quantity, note, assetId } = parsed.data;
+
+    // Verify inventory item exists and belongs to logged-in user's GP
+    const existing = await prisma.inventoryItem.findFirst({
+      where: {
+        id,
+        gpId: req.user.gpId,
+      },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Inventory item not found' });
+    }
+
+    // If assetId is provided, verify that the asset exists AND belongs to the same GP
+    if (assetId) {
+      const existingAsset = await prisma.asset.findFirst({
+        where: {
+          id: assetId,
+          gpId: req.user.gpId,
+        },
+      });
+
+      if (!existingAsset) {
+        return res.status(404).json({ error: 'Asset not found' });
+      }
+    }
+
+    // Atomic Negative-Stock Guard in prisma.$transaction
+    let stockError = null;
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Re-read current item within transaction isolation
+      const currentItem = await tx.inventoryItem.findUnique({
+        where: { id: existing.id },
+      });
+
+      if (!currentItem || currentItem.quantity < quantity) {
+        const availableQty = currentItem ? currentItem.quantity : existing.quantity;
+        const unit = currentItem ? currentItem.unit : existing.unit;
+        const err = new Error(`Only ${availableQty} ${unit} available`);
+        err.statusCode = 400;
+        err.isStockGuard = true;
+        throw err;
+      }
+
+      const item = await tx.inventoryItem.update({
+        where: { id: existing.id },
+        data: {
+          quantity: {
+            decrement: quantity,
+          },
+        },
+      });
+
+      const txn = await tx.stockTxn.create({
+        data: {
+          itemId: existing.id,
+          type: 'OUT',
+          quantity,
+          note: note && note.trim() ? note.trim() : null,
+          assetId: assetId || null,
+          createdById: req.user.id,
+        },
+      });
+
+      return { item, transaction: txn };
+    }).catch((err) => {
+      if (err.isStockGuard) {
+        stockError = err.message;
+        return null;
+      }
+      throw err;
+    });
+
+    if (stockError) {
+      return res.status(400).json({ error: stockError });
+    }
+
+    const { item: updatedItem, transaction } = result;
+
+    return res.status(201).json({
+      item: {
+        ...updatedItem,
+        isLowStock: updatedItem.quantity <= updatedItem.reorderLevel,
+      },
+      transaction,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listInventoryItems,
   getInventoryItem,
   createInventoryItem,
   updateInventoryItem,
   deleteInventoryItem,
+  stockIn,
+  stockOut,
 };
