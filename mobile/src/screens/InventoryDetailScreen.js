@@ -280,10 +280,14 @@ export default function InventoryDetailScreen({ route, navigation }) {
           onPress={() =>
             navigation.navigate('StockOut', {
               itemId: item.id,
-              item,
+              id: item.id,
+              itemName: item.name,
               name: item.name,
+              item,
               unit: item.unit,
+              availableQuantity: item.quantity,
               currentQuantity: item.quantity,
+              mode: 'OUT',
             })
           }
           activeOpacity={0.8}
@@ -310,10 +314,14 @@ export default function InventoryDetailScreen({ route, navigation }) {
             onPress={() =>
               navigation.navigate('StockIn', {
                 itemId: item.id,
-                item,
+                id: item.id,
+                itemName: item.name,
                 name: item.name,
+                item,
                 unit: item.unit,
+                availableQuantity: item.quantity,
                 currentQuantity: item.quantity,
+                mode: 'IN',
               })
             }
             activeOpacity={0.8}
