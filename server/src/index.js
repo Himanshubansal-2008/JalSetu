@@ -20,6 +20,9 @@ app.use('/api/auth', require('./routes/authRoutes'));
 // Asset routes
 app.use('/api/assets', require('./routes/assetRoute'));
 
+// Inventory routes
+app.use('/api/inventory', require('./routes/inventoryRoute'));
+
 // 404 handler for unmatched routes
 app.use((req, res, next) => {
   res.status(404).json({ error: 'Route not found' });
