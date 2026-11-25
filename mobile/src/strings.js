@@ -118,6 +118,10 @@ export const strings = {
   editEntry: 'Edit Entry',
   deleteEntry: 'Delete Entry',
   deleteFailed: 'Failed to delete entry',
+  linkedExpensesTitle: 'Linked Expenses',
+  totalSpentLabel: 'Total spent',
+  repairCostLabel: 'Repair cost',
+  noExpensesLinkedYet: 'No expenses linked to this asset yet',
 
   // Validation Messages
   phoneRequired: 'Phone must be 10 digits',

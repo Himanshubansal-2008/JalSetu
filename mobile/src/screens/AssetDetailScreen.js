@@ -39,6 +39,7 @@ import {
 } from '../utils/assetUtil';
 import { ATTRIBUTE_FIELDS } from '../utils/assetFormUtil';
 import { formatRupees } from '../utils/moneyUtil';
+import { formatPaiseToRupees } from '../utils/currency';
 import {
   formatDisplay,
   formatDateTime,
@@ -72,7 +73,10 @@ export default function AssetDetailScreen({ route, navigation }) {
   const { id, name: initialName } = route?.params || {};
 
   const user = useAuthStore((state) => state.user);
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin =
+    user?.role === 'ADMIN' ||
+    user?.role === 'admin' ||
+    user?.role?.toUpperCase() === 'ADMIN';
 
   // Data & loading states
   const [asset, setAsset] = useState(null);
@@ -373,6 +377,32 @@ export default function AssetDetailScreen({ route, navigation }) {
 
   const heroPhotoUrl = asset.photoUrl || asset.photo;
 
+  // Linked finance expenses & total spent
+  const expenses = Array.isArray(asset.expenses) ? asset.expenses : [];
+  const totalSpentPaise =
+    typeof asset.totalSpentPaise === 'number' ? asset.totalSpentPaise : 0;
+  const totalRepairCostPaise =
+    typeof asset.totalRepairCostPaise === 'number'
+      ? asset.totalRepairCostPaise
+      : 0;
+  const showExpensesSection = isAdmin || expenses.length > 0;
+
+  const handleExpensePress = (item) => {
+    if (!isAdmin) return;
+    try {
+      navigation.navigate(strings.finance, {
+        screen: 'LedgerEntryDetail',
+        params: { entry: item, id: item.id },
+      });
+    } catch (err) {
+      try {
+        navigation.navigate('LedgerEntryDetail', { entry: item, id: item.id });
+      } catch (e) {
+        // Navigation target unavailable
+      }
+    }
+  };
+
   return (
     <ScrollView
       style={styles.container}
@@ -557,6 +587,133 @@ export default function AssetDetailScreen({ route, navigation }) {
             value={asset.notes.trim()}
             multiline={true}
           />
+        </View>
+      ) : null}
+
+      {/* Linked Expenses Section */}
+      {showExpensesSection ? (
+        <View style={styles.sectionCard}>
+          <View style={styles.expensesSectionHeader}>
+            <View style={styles.expensesSectionTitleRow}>
+              <Ionicons
+                name="receipt-outline"
+                size={18}
+                color={colors.primary}
+                style={{ marginRight: spacing.xs }}
+              />
+              <Text style={styles.sectionTitle}>{strings.linkedExpensesTitle}</Text>
+            </View>
+            {expenses.length > 0 ? (
+              <View style={styles.expenseCountBadge}>
+                <Text style={styles.expenseCountBadgeText}>
+                  {expenses.length}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
+          {/* "Total Spent" Summary Card / Row */}
+          <View style={styles.totalSpentCard}>
+            <View style={styles.totalSpentRow}>
+              <Text style={styles.totalSpentLabel}>{strings.totalSpentLabel}</Text>
+              <Text style={styles.totalSpentAmount}>
+                {formatPaiseToRupees(totalSpentPaise)}
+              </Text>
+            </View>
+            {totalRepairCostPaise > 0 ? (
+              <View style={styles.repairCostRow}>
+                <Text style={styles.repairCostLabel}>
+                  {strings.repairCostLabel}:{' '}
+                  <Text style={styles.repairCostValue}>
+                    {formatPaiseToRupees(totalRepairCostPaise)}
+                  </Text>
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
+          {/* Linked Expense Entries List */}
+          {expenses.length === 0 ? (
+            <View style={styles.noExpensesContainer}>
+              <Text style={styles.noExpensesText}>
+                {strings.noExpensesLinkedYet}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.expensesList}>
+              {expenses.map((item, index) => {
+                const displayDate = item.date
+                  ? formatDisplay(isoToDateString(item.date)) ||
+                    isoToDateString(item.date)
+                  : '';
+                const isLast = index === expenses.length - 1;
+
+                return (
+                  <TouchableOpacity
+                    key={item.id || String(index)}
+                    style={[
+                      styles.expenseItemRow,
+                      !isLast && styles.expenseItemBorder,
+                    ]}
+                    onPress={() => handleExpensePress(item)}
+                    disabled={!isAdmin}
+                    activeOpacity={0.7}
+                    accessibilityRole={isAdmin ? 'button' : undefined}
+                    accessibilityLabel={`${item.category}, ${formatPaiseToRupees(item.amountPaise != null ? item.amountPaise : item.amount)}`}
+                  >
+                    <View style={styles.expenseItemLeft}>
+                      <View style={styles.expenseItemHeader}>
+                        <Text style={styles.expenseCategoryText}>
+                          {item.category}
+                        </Text>
+                        {item.mode ? (
+                          <View style={styles.modeMiniPill}>
+                            <Text style={styles.modeMiniPillText}>
+                              {item.mode}
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
+
+                      {item.description ? (
+                        <Text style={styles.expenseDescText} numberOfLines={2}>
+                          {item.description}
+                        </Text>
+                      ) : null}
+
+                      {displayDate ? (
+                        <View style={styles.expenseDateRow}>
+                          <Ionicons
+                            name="calendar-outline"
+                            size={12}
+                            color={colors.muted}
+                            style={{ marginRight: 4 }}
+                          />
+                          <Text style={styles.expenseDateText}>
+                            {displayDate}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+
+                    <View style={styles.expenseItemRight}>
+                      <Text style={styles.expenseAmountText}>
+                        -{formatPaiseToRupees(item.amountPaise != null ? item.amountPaise : item.amount)}
+                      </Text>
+                      {isAdmin ? (
+                        <Ionicons
+                          name="chevron-forward"
+                          size={16}
+                          color={colors.muted}
+                          style={{ marginTop: 2 }}
+                        />
+                      ) : null}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
         </View>
       ) : null}
 
@@ -825,5 +982,141 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.white,
     marginLeft: spacing.xs,
+  },
+  expensesSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  expensesSectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  expenseCountBadge: {
+    backgroundColor: tones.info.bg,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+  },
+  expenseCountBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: tones.info.fg,
+  },
+  totalSpentCard: {
+    backgroundColor: colors.background,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.md,
+  },
+  totalSpentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  totalSpentLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.muted,
+  },
+  totalSpentAmount: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  repairCostRow: {
+    marginTop: spacing.xs,
+    paddingTop: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  repairCostLabel: {
+    fontSize: 13,
+    color: colors.muted,
+  },
+  repairCostValue: {
+    fontWeight: '600',
+    color: colors.text,
+  },
+  noExpensesContainer: {
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noExpensesText: {
+    fontSize: 13,
+    color: colors.muted,
+    fontStyle: 'italic',
+  },
+  expensesList: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  expenseItemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.sm + 2,
+  },
+  expenseItemBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  expenseItemLeft: {
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  expenseItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  expenseCategoryText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginRight: spacing.xs,
+  },
+  modeMiniPill: {
+    backgroundColor: colors.background,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modeMiniPillText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.muted,
+    textTransform: 'uppercase',
+  },
+  expenseDescText: {
+    fontSize: 12,
+    color: colors.muted,
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  expenseDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  expenseDateText: {
+    fontSize: 11,
+    color: colors.muted,
+  },
+  expenseItemRight: {
+    alignItems: 'flex-end',
+    justifyContent: 'flex-start',
+    paddingTop: 1,
+  },
+  expenseAmountText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: tones.danger.fg,
   },
 });
