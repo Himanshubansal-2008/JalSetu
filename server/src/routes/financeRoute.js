@@ -6,9 +6,17 @@ const {
   listLedgerEntries,
   updateLedgerEntry,
   deleteLedgerEntry,
+  getCashBook,
+  getMonthlySummary,
 } = require('../controllers/financeController');
 
 const router = express.Router();
+
+// Cash Book: Admin only
+router.get('/cashbook', authenticate, requireRole('ADMIN'), getCashBook);
+
+// Monthly Summary: Admin only
+router.get('/summary', authenticate, requireRole('ADMIN'), getMonthlySummary);
 
 // Add Receipt: Admin only
 router.post('/receipts', authenticate, requireRole('ADMIN'), addReceipt);

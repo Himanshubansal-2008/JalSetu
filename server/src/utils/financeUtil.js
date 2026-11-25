@@ -236,6 +236,70 @@ const updateLedgerEntrySchema = z
   })
   .strict();
 
+/**
+ * Resolves a month string ("YYYY-MM") into UTC start and end Date boundaries.
+ * Defaults to current month if omitted.
+ */
+function resolveMonthRange(monthStr) {
+  let str = monthStr;
+  if (!str) {
+    const now = new Date();
+    const y = now.getUTCFullYear();
+    const m = String(now.getUTCMonth() + 1).padStart(2, '0');
+    str = `${y}-${m}`;
+  }
+
+  if (typeof str !== 'string' || !/^\d{4}-\d{2}$/.test(str)) {
+    return null;
+  }
+
+  const [yStr, mStr] = str.split('-');
+  const year = parseInt(yStr, 10);
+  const month = parseInt(mStr, 10);
+
+  if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+    return null;
+  }
+
+  const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
+  const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+
+  return {
+    month: str,
+    startDate,
+    endDate,
+  };
+}
+
+// Schema for Cash Book Query (GET /api/finance/cashbook)
+const cashBookQuerySchema = z
+  .object({
+    startDate: z.string().trim().optional(),
+    endDate: z.string().trim().optional(),
+    month: z.string().trim().optional(),
+  })
+  .refine(
+    (data) => {
+      // If either startDate or endDate is provided, both must be provided
+      if ((data.startDate && !data.endDate) || (!data.startDate && data.endDate)) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: 'Both startDate and endDate must be provided together',
+    }
+  );
+
+// Schema for Monthly Summary Query (GET /api/finance/summary)
+const monthlySummaryQuerySchema = z.object({
+  month: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}$/, 'month must be in YYYY-MM format')
+    .optional(),
+});
+
 module.exports = {
   idParamSchema,
   RECEIPT_CATEGORIES,
@@ -243,8 +307,11 @@ module.exports = {
   PAYMENT_MODES,
   normalizeDateToUtcMidnight,
   normalizeDateToEndOfDay,
+  resolveMonthRange,
   createReceiptSchema,
   createExpenseSchema,
   listLedgerEntriesQuerySchema,
   updateLedgerEntrySchema,
+  cashBookQuerySchema,
+  monthlySummaryQuerySchema,
 };

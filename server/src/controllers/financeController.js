@@ -3,10 +3,15 @@ const {
   idParamSchema,
   RECEIPT_CATEGORIES,
   EXPENSE_CATEGORIES,
+  normalizeDateToUtcMidnight,
+  normalizeDateToEndOfDay,
+  resolveMonthRange,
   createReceiptSchema,
   createExpenseSchema,
   listLedgerEntriesQuerySchema,
   updateLedgerEntrySchema,
+  cashBookQuerySchema,
+  monthlySummaryQuerySchema,
 } = require('../utils/financeUtil');
 
 // Add Receipt (POST /api/finance/receipts) - Admin only
@@ -325,10 +330,227 @@ async function deleteLedgerEntry(req, res, next) {
   }
 }
 
+// Cash Book (GET /api/finance/cashbook) - Admin only
+async function getCashBook(req, res, next) {
+  try {
+    const parsed = cashBookQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0].message });
+    }
+
+    const { startDate: qStart, endDate: qEnd, month: qMonth } = parsed.data;
+
+    let startDateObj;
+    let endDateObj;
+
+    if (qStart && qEnd) {
+      const start = normalizeDateToUtcMidnight(qStart);
+      const end = normalizeDateToEndOfDay(qEnd);
+      if (!start || !end) {
+        return res.status(400).json({
+          error:
+            'Invalid startDate or endDate format (must be YYYY-MM-DD or valid ISO date)',
+        });
+      }
+      if (start > end) {
+        return res
+          .status(400)
+          .json({ error: 'startDate cannot be after endDate' });
+      }
+      startDateObj = start;
+      endDateObj = end;
+    } else if (qMonth) {
+      const monthRange = resolveMonthRange(qMonth);
+      if (!monthRange) {
+        return res
+          .status(400)
+          .json({ error: 'Invalid month format (must be YYYY-MM)' });
+      }
+      startDateObj = monthRange.startDate;
+      endDateObj = monthRange.endDate;
+    } else {
+      // Default to current month
+      const monthRange = resolveMonthRange();
+      startDateObj = monthRange.startDate;
+      endDateObj = monthRange.endDate;
+    }
+
+    // Opening Balance (via DB aggregate - do NOT load all prior rows into memory)
+    const [priorReceipts, priorExpenses] = await Promise.all([
+      prisma.ledgerEntry.aggregate({
+        where: {
+          gpId: req.user.gpId,
+          type: 'RECEIPT',
+          date: { lt: startDateObj },
+        },
+        _sum: { amount: true },
+      }),
+      prisma.ledgerEntry.aggregate({
+        where: {
+          gpId: req.user.gpId,
+          type: 'EXPENSE',
+          date: { lt: startDateObj },
+        },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    const openingBalancePaise =
+      (priorReceipts._sum.amount ?? 0) - (priorExpenses._sum.amount ?? 0);
+
+    // Entries in range [startDateObj, endDateObj] sorted chronologically oldest-first
+    const rawEntries = await prisma.ledgerEntry.findMany({
+      where: {
+        gpId: req.user.gpId,
+        date: {
+          gte: startDateObj,
+          lte: endDateObj,
+        },
+      },
+      orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
+      include: {
+        asset: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+          },
+        },
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    let runningBalance = openingBalancePaise;
+    let totalReceiptsPaise = 0;
+    let totalExpensesPaise = 0;
+
+    const entries = rawEntries.map((e) => {
+      if (e.type === 'RECEIPT') {
+        runningBalance += e.amount;
+        totalReceiptsPaise += e.amount;
+      } else if (e.type === 'EXPENSE') {
+        runningBalance -= e.amount;
+        totalExpensesPaise += e.amount;
+      }
+
+      return {
+        ...e,
+        amountPaise: e.amount,
+        runningBalancePaise: runningBalance,
+        user: e.createdBy
+          ? { id: e.createdBy.id, name: e.createdBy.name }
+          : null,
+      };
+    });
+
+    const closingBalancePaise =
+      openingBalancePaise + totalReceiptsPaise - totalExpensesPaise;
+
+    return res.status(200).json({
+      startDate: startDateObj.toISOString(),
+      endDate: endDateObj.toISOString(),
+      openingBalancePaise,
+      totalReceiptsPaise,
+      totalExpensesPaise,
+      closingBalancePaise,
+      entries,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Monthly Summary (GET /api/finance/summary) - Admin only
+async function getMonthlySummary(req, res, next) {
+  try {
+    const parsed = monthlySummaryQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0].message });
+    }
+
+    const monthRange = resolveMonthRange(parsed.data.month);
+    if (!monthRange) {
+      return res
+        .status(400)
+        .json({ error: 'Invalid month format (must be YYYY-MM)' });
+    }
+
+    const { month, startDate, endDate } = monthRange;
+
+    // Aggregation via groupBy on type and category
+    const groups = await prisma.ledgerEntry.groupBy({
+      by: ['type', 'category'],
+      where: {
+        gpId: req.user.gpId,
+        date: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      _sum: {
+        amount: true,
+      },
+    });
+
+    const incomeCategories = [];
+    let totalIncomePaise = 0;
+
+    const expenseCategories = [];
+    let totalExpensePaise = 0;
+
+    for (const group of groups) {
+      const sumAmount = group._sum.amount ?? 0;
+      if (group.type === 'RECEIPT') {
+        incomeCategories.push({
+          category: group.category,
+          amountPaise: sumAmount,
+        });
+        totalIncomePaise += sumAmount;
+      } else if (group.type === 'EXPENSE') {
+        expenseCategories.push({
+          category: group.category,
+          amountPaise: sumAmount,
+        });
+        totalExpensePaise += sumAmount;
+      }
+    }
+
+    // Sort categories descending by amount
+    incomeCategories.sort((a, b) => b.amountPaise - a.amountPaise);
+    expenseCategories.sort((a, b) => b.amountPaise - a.amountPaise);
+
+    const netBalancePaise = totalIncomePaise - totalExpensePaise;
+
+    return res.status(200).json({
+      month,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      income: {
+        categories: incomeCategories,
+        totalIncomePaise,
+      },
+      expense: {
+        categories: expenseCategories,
+        totalExpensePaise,
+      },
+      netBalancePaise,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   addReceipt,
   addExpense,
   listLedgerEntries,
   updateLedgerEntry,
   deleteLedgerEntry,
+  getCashBook,
+  getMonthlySummary,
 };
