@@ -59,7 +59,7 @@ async function addExpense(req, res, next) {
       return res.status(400).json({ error: parsed.error.issues[0].message });
     }
 
-    const { category, amountPaise, date, mode, description, assetId } =
+    const { category, amountPaise, date, mode, description, reference, assetId } =
       parsed.data;
 
     // If assetId is provided, verify it exists and belongs to the user's gpId
@@ -85,6 +85,7 @@ async function addExpense(req, res, next) {
         date,
         mode,
         description: description ? description.trim() : null,
+        reference: reference ? reference.trim() : null,
         assetId: assetId || null,
         isSystem: false,
         createdById: req.user.id,

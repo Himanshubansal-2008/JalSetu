@@ -155,6 +155,12 @@ const createExpenseSchema = z
       .max(500, 'description cannot exceed 500 characters')
       .optional()
       .nullable(),
+    reference: z
+      .string({ invalid_type_error: 'reference must be a string' })
+      .trim()
+      .max(100, 'reference cannot exceed 100 characters')
+      .optional()
+      .nullable(),
     assetId: z
       .string({ invalid_type_error: 'assetId must be a string' })
       .trim()

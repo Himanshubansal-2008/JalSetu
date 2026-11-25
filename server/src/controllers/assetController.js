@@ -111,32 +111,50 @@ async function getAsset(req, res, next) {
 
     const { id } = req.params;
 
-    // 2. Fetch asset belonging to authenticated user's Gram Panchayat
-    const asset = await prisma.asset.findFirst({
-      where: {
-        id,
-        gpId: req.user.gpId,
-      },
-      include: {
-        events: {
-          select: {
-            id: true,
-            kind: true,
-            note: true,
-            photo: true,
-            createdAt: true,
-            createdBy: {
-              select: {
-                id: true,
-                name: true,
+    // 2. Fetch asset belonging to authenticated user's Gram Panchayat and linked expenses
+    const [asset, rawExpenses] = await Promise.all([
+      prisma.asset.findFirst({
+        where: {
+          id,
+          gpId: req.user.gpId,
+        },
+        include: {
+          events: {
+            select: {
+              id: true,
+              kind: true,
+              note: true,
+              photo: true,
+              createdAt: true,
+              createdBy: {
+                select: {
+                  id: true,
+                  name: true,
+                },
               },
             },
+            orderBy: { createdAt: 'desc' },
+            take: 50,
           },
-          orderBy: { createdAt: 'desc' },
-          take: 50,
         },
-      },
-    });
+      }),
+      prisma.ledgerEntry.findMany({
+        where: {
+          assetId: id,
+          gpId: req.user.gpId,
+          type: 'EXPENSE',
+        },
+        orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+        select: {
+          id: true,
+          category: true,
+          amount: true,
+          date: true,
+          mode: true,
+          description: true,
+        },
+      }),
+    ]);
 
     // 3. Return 404 if not found or belongs to another GP
     if (!asset) {
@@ -151,10 +169,36 @@ async function getAsset(req, res, next) {
       authorName: e.createdBy ? e.createdBy.name : null,
     }));
 
+    // 5. Compute total expenses and repair cost
+    let totalSpentPaise = 0;
+    let totalRepairCostPaise = 0;
+
+    const expenses = rawExpenses.map((e) => {
+      const amountPaise = e.amount;
+      totalSpentPaise += amountPaise;
+      if (e.category === 'Repair' || e.category?.toLowerCase() === 'repair') {
+        totalRepairCostPaise += amountPaise;
+      }
+      return {
+        id: e.id,
+        category: e.category,
+        amountPaise,
+        date: e.date,
+        mode: e.mode,
+        description: e.description,
+      };
+    });
+
     return res.status(200).json({
       asset: {
         ...asset,
+        photoUrl: asset.photo,
+        latitude: asset.lat,
+        longitude: asset.lng,
         events,
+        expenses,
+        totalSpentPaise,
+        totalRepairCostPaise,
       },
     });
   } catch (err) {
