@@ -87,6 +87,16 @@ export const strings = {
   updateEntry: 'Update Entry',
   entryType: 'Entry Type',
   receipt: 'Receipt',
+  openingBalance: 'Opening Balance',
+  closingBalance: 'Closing Balance',
+  monthMode: 'Month',
+  customRangeMode: 'Custom Range',
+  startDate: 'Start Date',
+  endDate: 'End Date',
+  noCashbookEntries: 'No cash book entries in this period',
+  runningBalancePrefix: 'Bal:',
+  applyRange: 'Apply Range',
+  asOf: 'As of',
 
   // Validation Messages
   phoneRequired: 'Phone must be 10 digits',
