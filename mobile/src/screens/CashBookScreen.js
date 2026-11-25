@@ -356,7 +356,7 @@ export default function CashBookScreen({ route, navigation }) {
                 key={entry.id}
                 style={styles.entryRowCard}
                 onPress={() =>
-                  navigation.navigate('FinanceEntryDetail', {
+                  navigation.navigate('LedgerEntryDetail', {
                     id: entry.id,
                     entry,
                   })

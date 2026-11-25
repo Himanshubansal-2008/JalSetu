@@ -106,6 +106,18 @@ export const strings = {
   expenseByCategory: 'Expense by Category',
   noIncomeThisMonth: 'No income recorded this month',
   noExpenseThisMonth: 'No expenses recorded this month',
+  ledgerEntryDetail: 'Entry Details',
+  receiptDetails: 'Receipt Details',
+  expenseDetails: 'Expense Details',
+  deleteEntryConfirmTitle: 'Delete Entry?',
+  deleteEntryConfirmMessage:
+    'Are you sure you want to delete this ledger entry? This action cannot be undone.',
+  systemEntryLockMessage:
+    'Auto-generated from consumer bill payment — cannot be edited or deleted.',
+  systemEntryBadge: 'System-generated entry',
+  editEntry: 'Edit Entry',
+  deleteEntry: 'Delete Entry',
+  deleteFailed: 'Failed to delete entry',
 
   // Validation Messages
   phoneRequired: 'Phone must be 10 digits',

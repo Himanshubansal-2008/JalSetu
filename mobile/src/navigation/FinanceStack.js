@@ -10,6 +10,7 @@ import FinanceEntryFormScreen from '../screens/FinanceEntryFormScreen';
 import CashBookScreen from '../screens/CashBookScreen';
 import MonthlySummaryScreen from '../screens/MonthlySummaryScreen';
 import FinanceEntryDetailScreen from '../screens/FinanceEntryDetailScreen';
+import LedgerEntryDetailScreen from '../screens/LedgerEntryDetailScreen';
 import { strings } from '../strings';
 import { colors } from '../theme';
 
@@ -69,8 +70,18 @@ export default function FinanceStack() {
         options={({ route }) => ({
           title:
             route.params?.entry?.type === 'RECEIPT'
-              ? 'Receipt Details'
-              : 'Expense Details',
+              ? strings.receiptDetails
+              : strings.expenseDetails,
+        })}
+      />
+      <Stack.Screen
+        name="LedgerEntryDetail"
+        component={LedgerEntryDetailScreen}
+        options={({ route }) => ({
+          title:
+            route.params?.entry?.type === 'RECEIPT'
+              ? strings.receiptDetails
+              : strings.expenseDetails,
         })}
       />
     </Stack.Navigator>
