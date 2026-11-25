@@ -97,6 +97,15 @@ export const strings = {
   runningBalancePrefix: 'Bal:',
   applyRange: 'Apply Range',
   asOf: 'As of',
+  monthlySummaryTitle: 'Monthly Summary',
+  monthlySummarySubtitle: 'Category breakdown & percentages',
+  totalIncome: 'Total Income',
+  totalExpense: 'Total Expense',
+  netMonthBalance: 'Net Month Balance',
+  incomeByCategory: 'Income by Category',
+  expenseByCategory: 'Expense by Category',
+  noIncomeThisMonth: 'No income recorded this month',
+  noExpenseThisMonth: 'No expenses recorded this month',
 
   // Validation Messages
   phoneRequired: 'Phone must be 10 digits',

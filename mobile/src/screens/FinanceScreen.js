@@ -304,6 +304,24 @@ export default function FinanceScreen({ navigation }) {
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.muted} />
         </TouchableOpacity>
+
+        {/* Monthly Summary */}
+        <TouchableOpacity
+          style={styles.actionCard}
+          onPress={() =>
+            navigation.navigate('MonthlySummary', { month: currentMonth })
+          }
+          activeOpacity={0.7}
+        >
+          <View style={[styles.actionIconBox, { backgroundColor: tones.warning.bg }]}>
+            <Ionicons name="pie-chart" size={22} color={tones.warning.fg} />
+          </View>
+          <View style={styles.actionTextBox}>
+            <Text style={styles.actionTitle}>{strings.monthlySummary}</Text>
+            <Text style={styles.actionSubtitle}>{strings.monthlySummarySubtitle}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+        </TouchableOpacity>
       </View>
 
       {/* Month Category Breakdown Section */}
