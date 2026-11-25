@@ -5,12 +5,20 @@ import PlaceholderScreen from '../screens/PlaceholderScreen';
 import AssetsStack from './AssetsStack';
 import AssetMapScreen from '../screens/AssetMapScreen';
 import InventoryStack from './InventoryStack';
+import FinanceStack from './FinanceStack';
+import { useAuthStore } from '../store/authStore';
 import { strings } from '../strings';
 import { colors } from '../theme';
 
 const Tab = createBottomTabNavigator();
 
 export default function AdminTabs() {
+  const user = useAuthStore((state) => state.user);
+  const isAdmin =
+    user?.role === 'ADMIN' ||
+    user?.role === 'admin' ||
+    user?.role?.toUpperCase() === 'ADMIN';
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -52,7 +60,13 @@ export default function AdminTabs() {
         component={InventoryStack}
         options={{ headerShown: false }}
       />
-      <Tab.Screen name={strings.finance} component={PlaceholderScreen} />
+      {isAdmin && (
+        <Tab.Screen
+          name={strings.finance}
+          component={FinanceStack}
+          options={{ headerShown: false }}
+        />
+      )}
       <Tab.Screen name={strings.consumers} component={PlaceholderScreen} />
     </Tab.Navigator>
   );

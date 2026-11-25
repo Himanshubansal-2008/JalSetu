@@ -43,6 +43,27 @@ export const strings = {
   finance: 'Finance',
   consumers: 'Consumers',
 
+  // Finance Module
+  financeTitle: 'Finance',
+  income: 'Income',
+  expense: 'Expense',
+  netBalance: 'Net Balance',
+  thisMonth: 'This Month',
+  addReceipt: 'Add Receipt',
+  addExpense: 'Add Expense',
+  cashBook: 'Cash Book',
+  monthlySummary: 'Monthly Summary',
+  viewMonthlyBreakdown: 'View Monthly Breakdown',
+  monthlyBreakdown: 'Monthly Breakdown',
+  noTransactionsThisMonth: 'No transactions recorded for this month.',
+  adminAccessOnly: 'Admin access only',
+  adminAccessOnlyMessage: 'You must be an administrator to access finance records.',
+  receiptModeSubtitle: 'Record grant, water tax, or donation',
+  expenseModeSubtitle: 'Record repair, salary, or bill',
+  cashBookSubtitle: 'Ledger entries & running balance',
+  totalReceipts: 'Total Receipts',
+  totalExpenses: 'Total Expenses',
+
   // Validation Messages
   phoneRequired: 'Phone must be 10 digits',
   passwordRequired: 'Password must be at least 6 characters',
@@ -340,3 +361,7 @@ export const strings = {
   cannotDeleteHistoryExplanation:
     'Items with stock transaction history cannot be deleted to preserve audit records.',
 };
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { strings };
+}
