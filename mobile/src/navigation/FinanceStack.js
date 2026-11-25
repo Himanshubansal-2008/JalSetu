@@ -39,10 +39,13 @@ export default function FinanceStack() {
         name="FinanceEntryForm"
         component={FinanceEntryFormScreen}
         options={({ route }) => ({
-          title:
-            route.params?.mode === 'RECEIPT'
-              ? strings.addReceipt
-              : strings.addExpense,
+          title: route.params?.entry
+            ? route.params.entry.type === 'RECEIPT'
+              ? strings.editReceiptTitle
+              : strings.editExpenseTitle
+            : (route.params?.initialType || route.params?.mode) === 'EXPENSE'
+            ? strings.addExpenseTitle
+            : strings.addReceiptTitle,
         })}
       />
       <Stack.Screen

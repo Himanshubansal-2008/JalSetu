@@ -249,7 +249,10 @@ export default function FinanceScreen({ navigation }) {
         <TouchableOpacity
           style={styles.actionCard}
           onPress={() =>
-            navigation.navigate('FinanceEntryForm', { mode: 'RECEIPT' })
+            navigation.navigate('FinanceEntryForm', {
+              initialType: 'RECEIPT',
+              mode: 'RECEIPT',
+            })
           }
           activeOpacity={0.7}
         >
@@ -267,7 +270,10 @@ export default function FinanceScreen({ navigation }) {
         <TouchableOpacity
           style={styles.actionCard}
           onPress={() =>
-            navigation.navigate('FinanceEntryForm', { mode: 'EXPENSE' })
+            navigation.navigate('FinanceEntryForm', {
+              initialType: 'EXPENSE',
+              mode: 'EXPENSE',
+            })
           }
           activeOpacity={0.7}
         >
