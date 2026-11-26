@@ -30,6 +30,7 @@ import { useAuthStore } from '../store/authStore';
 import { formatPaiseToRupees } from '../utils/currency';
 import { strings } from '../strings';
 import { colors, tones, spacing, radius } from '../theme';
+import PayBillModal from '../components/PayBillModal';
 
 // Returns current local month in "YYYY-MM"
 function currentMonthString() {
@@ -104,6 +105,8 @@ export default function BillsScreen({ navigation }) {
   // Action states
   const [generating, setGenerating] = useState(false);
   const [payingBillId, setPayingBillId] = useState(null);
+  const [selectedBillForPay, setSelectedBillForPay] = useState(null);
+  const [payModalVisible, setPayModalVisible] = useState(false);
 
   const hasDataRef = useRef(false);
   const requestIdRef = useRef(0);
@@ -224,22 +227,8 @@ export default function BillsScreen({ navigation }) {
   // Record Payment Flow for Pending Bill
   const handlePayBill = (bill) => {
     if (!isAdmin) return;
-
-    Alert.alert(
-      'Record Payment',
-      `Record payment of ${formatPaiseToRupees(bill.amountPaise)} for ${bill.consumer?.name || 'Consumer'} (${bill.month})?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Pay via Cash',
-          onPress: () => executePayBill(bill.id, 'Cash'),
-        },
-        {
-          text: 'Pay via UPI',
-          onPress: () => executePayBill(bill.id, 'UPI'),
-        },
-      ]
-    );
+    setSelectedBillForPay(bill);
+    setPayModalVisible(true);
   };
 
   const executePayBill = async (billId, mode) => {
@@ -620,6 +609,21 @@ export default function BillsScreen({ navigation }) {
           }
         />
       )}
+
+      {/* Pay Bill Modal */}
+      <PayBillModal
+        visible={payModalVisible}
+        bill={selectedBillForPay}
+        onClose={() => {
+          setPayModalVisible(false);
+          setSelectedBillForPay(null);
+        }}
+        onSuccess={async () => {
+          setPayModalVisible(false);
+          setSelectedBillForPay(null);
+          await fetchData({ isRefresh: true });
+        }}
+      />
     </View>
   );
 }

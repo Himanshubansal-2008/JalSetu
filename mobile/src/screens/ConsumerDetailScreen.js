@@ -24,6 +24,7 @@ import { formatPaiseToRupees } from '../utils/currency';
 import { formatDisplay, isoToDateString } from '../utils/dateUtil';
 import { strings } from '../strings';
 import { colors, tones, spacing, radius } from '../theme';
+import PayBillModal from '../components/PayBillModal';
 
 // Formats YYYY-MM to readable string e.g. "November 2026"
 function formatMonthName(monthStr) {
@@ -68,6 +69,8 @@ export default function ConsumerDetailScreen({ route, navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [payingBillId, setPayingBillId] = useState(null);
+  const [selectedBillForPay, setSelectedBillForPay] = useState(null);
+  const [payModalVisible, setPayModalVisible] = useState(false);
 
   const hasDataRef = useRef(!!initialConsumer);
   const requestIdRef = useRef(0);
@@ -141,22 +144,15 @@ export default function ConsumerDetailScreen({ route, navigation }) {
   // Handle Pay Now for a pending bill
   const handlePayNow = (bill) => {
     if (!isAdmin) return;
-
-    Alert.alert(
-      'Pay Bill',
-      `Record payment of ${formatPaiseToRupees(bill.amountPaise)} for ${formatMonthName(bill.month)}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Pay via Cash',
-          onPress: () => submitPayment(bill.id, 'Cash'),
-        },
-        {
-          text: 'Pay via UPI',
-          onPress: () => submitPayment(bill.id, 'UPI'),
-        },
-      ]
-    );
+    const billWithConsumer = {
+      ...bill,
+      consumer: bill.consumer || {
+        name: consumer?.name,
+        houseNumber: consumer?.houseNumber,
+      },
+    };
+    setSelectedBillForPay(billWithConsumer);
+    setPayModalVisible(true);
   };
 
   const submitPayment = async (billId, mode) => {
@@ -178,17 +174,18 @@ export default function ConsumerDetailScreen({ route, navigation }) {
   const bills = consumer?.bills || [];
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.scrollContent}
-      refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={() => fetchConsumer({ isRefresh: true })}
-          colors={[colors.primary]}
-        />
-      }
-    >
+    <>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => fetchConsumer({ isRefresh: true })}
+            colors={[colors.primary]}
+          />
+        }
+      >
       {/* Loading state */}
       {loading && !consumer ? (
         <View style={styles.centered}>
@@ -442,6 +439,22 @@ export default function ConsumerDetailScreen({ route, navigation }) {
         </>
       ) : null}
     </ScrollView>
+
+    {/* Pay Bill Modal */}
+    <PayBillModal
+      visible={payModalVisible}
+      bill={selectedBillForPay}
+      onClose={() => {
+        setPayModalVisible(false);
+        setSelectedBillForPay(null);
+      }}
+      onSuccess={async () => {
+        setPayModalVisible(false);
+        setSelectedBillForPay(null);
+        await fetchConsumer({ isRefresh: true });
+      }}
+    />
+  </>
   );
 }
 
