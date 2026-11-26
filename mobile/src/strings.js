@@ -157,6 +157,14 @@ export const strings = {
   houseNumberCannotBeEmpty: 'House number cannot be empty',
   phoneCannotBeEmpty: 'Phone number cannot be empty',
   monthlyChargeMustBePositive: 'Monthly charge must be greater than ₹0',
+  billingHistory: 'Billing History',
+  totalPendingDues: 'Total Pending Dues',
+  totalPaid: 'Total Paid',
+  allClear: 'All Clear',
+  payNow: 'Pay Now',
+  noBillsYet: 'No bills generated for this consumer yet',
+  monthlyTariff: 'Monthly Tariff',
+  consumerDetails: 'Consumer Details',
 
   // Validation Messages
   phoneRequired: 'Phone must be 10 digits',

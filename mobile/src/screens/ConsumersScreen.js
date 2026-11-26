@@ -132,8 +132,9 @@ export default function ConsumersScreen({ navigation }) {
         style={[styles.card, isInactive && styles.cardInactive]}
         onPress={() =>
           navigation.navigate('ConsumerDetail', {
-            consumer: item,
+            consumerId: item.id,
             id: item.id,
+            consumer: item,
           })
         }
         activeOpacity={0.7}
