@@ -93,20 +93,29 @@ async function getConsumer(req, res, next) {
       return res.status(404).json({ error: 'Consumer not found' });
     }
 
-    const pendingBills = (consumer.bills || []).filter(
-      (b) => b.status === 'PENDING'
-    );
-    const pendingDuesPaise = pendingBills.reduce(
-      (sum, b) => sum + (b.amountPaise || 0),
-      0
-    );
-    const pendingBillsCount = pendingBills.length;
+    let totalDuesPaise = 0;
+    let pendingBillsCount = 0;
+    let totalPaidPaise = 0;
+    let paidBillsCount = 0;
+
+    for (const b of consumer.bills || []) {
+      if (b.status === 'PENDING') {
+        totalDuesPaise += b.amountPaise || 0;
+        pendingBillsCount++;
+      } else if (b.status === 'PAID') {
+        totalPaidPaise += b.amountPaise || 0;
+        paidBillsCount++;
+      }
+    }
 
     return res.status(200).json({
       consumer: {
         ...consumer,
-        pendingDuesPaise,
+        totalDuesPaise,
+        pendingDuesPaise: totalDuesPaise,
         pendingBillsCount,
+        totalPaidPaise,
+        paidBillsCount,
       },
     });
   } catch (err) {

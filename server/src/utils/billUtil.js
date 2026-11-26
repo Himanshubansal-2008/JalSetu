@@ -48,11 +48,33 @@ const payBillSchema = z
   })
   .strict();
 
+// Schema for List Bills Query (GET /api/bills)
+const listBillsQuerySchema = z.object({
+  month: z
+    .string()
+    .trim()
+    .regex(MONTH_REGEX, 'month must be in YYYY-MM format')
+    .optional(),
+  status: z.string().trim().optional(),
+  search: z.string().trim().optional(),
+});
+
+// Schema for Dues Summary Query (GET /api/bills/summary)
+const duesSummaryQuerySchema = z.object({
+  month: z
+    .string()
+    .trim()
+    .regex(MONTH_REGEX, 'month must be in YYYY-MM format')
+    .optional(),
+});
+
 module.exports = {
   MONTH_REGEX,
   PAYMENT_MODES,
   idParamSchema,
   generateBillsSchema,
   payBillSchema,
+  listBillsQuerySchema,
+  duesSummaryQuerySchema,
   normalizeDateToUtcMidnight,
 };

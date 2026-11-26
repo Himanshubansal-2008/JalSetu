@@ -1,6 +1,12 @@
 const express = require('express');
 const { authenticate } = require('../middleware/authMiddleware');
-const { generateBills, payBill } = require('../controllers/billController');
+const {
+  listBills,
+  getDuesSummary,
+  getBill,
+  generateBills,
+  payBill,
+} = require('../controllers/billController');
 
 const router = express.Router();
 
@@ -20,8 +26,17 @@ function requireAdmin(req, res, next) {
 router.use(authenticate);
 router.use(requireAdmin);
 
+// Dues Summary: GET /api/bills/summary (must be before /:id)
+router.get('/summary', getDuesSummary);
+
+// List Bills: GET /api/bills
+router.get('/', listBills);
+
 // Generate Monthly Bills: POST /api/bills/generate
 router.post('/generate', generateBills);
+
+// Single Bill Detail: GET /api/bills/:id
+router.get('/:id', getBill);
 
 // Atomic Bill Payment: POST /api/bills/:id/pay
 router.post('/:id/pay', payBill);

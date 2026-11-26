@@ -3,8 +3,228 @@ const {
   idParamSchema,
   generateBillsSchema,
   payBillSchema,
+  listBillsQuerySchema,
+  duesSummaryQuerySchema,
   normalizeDateToUtcMidnight,
 } = require('../utils/billUtil');
+
+/**
+ * List Bills (GET /api/bills) - Admin only
+ * Strictly scoped to req.user.gpId
+ * Supports optional filters: month, status (PENDING / PAID / ALL), search (name or houseNumber)
+ * Includes consumer and GP metadata for mobile PDF generation
+ * Sorted newest month first, then by consumer house number
+ */
+async function listBills(req, res, next) {
+  try {
+    const parsed = listBillsQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0].message });
+    }
+
+    const { month, status, search } = parsed.data;
+    const gpId = req.user.gpId;
+
+    const where = {
+      gpId,
+    };
+
+    if (month) {
+      where.month = month;
+    }
+
+    if (status && status.trim() !== '') {
+      const s = status.trim().toUpperCase();
+      if (s === 'PENDING' || s === 'PAID') {
+        where.status = s;
+      }
+    }
+
+    if (search && search.trim() !== '') {
+      const term = search.trim();
+      where.OR = [
+        { consumer: { name: { contains: term, mode: 'insensitive' } } },
+        { consumer: { houseNumber: { contains: term, mode: 'insensitive' } } },
+        { reference: { contains: term, mode: 'insensitive' } },
+      ];
+    }
+
+    const bills = await prisma.bill.findMany({
+      where,
+      include: {
+        consumer: {
+          select: {
+            id: true,
+            name: true,
+            houseNumber: true,
+            phone: true,
+          },
+        },
+        gp: {
+          select: {
+            id: true,
+            name: true,
+            village: true,
+            district: true,
+            state: true,
+            upiId: true,
+          },
+        },
+      },
+      orderBy: [
+        { month: 'desc' },
+        { consumer: { houseNumber: 'asc' } },
+        { createdAt: 'desc' },
+      ],
+    });
+
+    return res.status(200).json({
+      bills,
+      total: bills.length,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Dues Summary (GET /api/bills/summary) - Admin only
+ * Strictly scoped to req.user.gpId
+ * Computes integer paise totals via Prisma aggregate / groupBy:
+ * totalBilledPaise & totalBillsCount
+ * totalCollectedPaise & paidBillsCount
+ * totalPendingPaise & pendingBillsCount
+ */
+async function getDuesSummary(req, res, next) {
+  try {
+    const parsed = duesSummaryQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0].message });
+    }
+
+    const { month } = parsed.data;
+    const gpId = req.user.gpId;
+
+    const periodWhere = { gpId };
+    if (month) {
+      periodWhere.month = month;
+    }
+
+    // 1. Group by status for the specified period (month or overall)
+    const grouped = await prisma.bill.groupBy({
+      by: ['status'],
+      where: periodWhere,
+      _sum: {
+        amountPaise: true,
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    let totalBilledPaise = 0;
+    let totalBillsCount = 0;
+    let totalCollectedPaise = 0;
+    let paidBillsCount = 0;
+    let totalPendingPaise = 0;
+    let pendingBillsCount = 0;
+
+    for (const group of grouped) {
+      const sum = group._sum.amountPaise || 0;
+      const count = group._count.id || 0;
+      totalBilledPaise += sum;
+      totalBillsCount += count;
+      if (group.status === 'PAID') {
+        totalCollectedPaise += sum;
+        paidBillsCount += count;
+      } else if (group.status === 'PENDING') {
+        totalPendingPaise += sum;
+        pendingBillsCount += count;
+      }
+    }
+
+    // 2. Compute overall pending totals across all bills for this GP
+    const overallPendingAgg = await prisma.bill.aggregate({
+      where: {
+        gpId,
+        status: 'PENDING',
+      },
+      _sum: {
+        amountPaise: true,
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    const overallPendingPaise = overallPendingAgg._sum.amountPaise || 0;
+    const overallPendingBillsCount = overallPendingAgg._count.id || 0;
+
+    return res.status(200).json({
+      month: month || null,
+      totalBilledPaise,
+      totalBillsCount,
+      totalCollectedPaise,
+      paidBillsCount,
+      totalPendingPaise,
+      pendingBillsCount,
+      overallPendingPaise,
+      overallPendingBillsCount,
+      pendingDuesPaise: overallPendingPaise,
+      unpaidBillsCount: overallPendingBillsCount,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Get Single Bill Detail (GET /api/bills/:id) - Admin only
+ */
+async function getBill(req, res, next) {
+  try {
+    const idParsed = idParamSchema.safeParse(req.params.id);
+    if (!idParsed.success) {
+      return res.status(400).json({ error: idParsed.error.issues[0].message });
+    }
+
+    const bill = await prisma.bill.findFirst({
+      where: {
+        id: req.params.id,
+        gpId: req.user.gpId,
+      },
+      include: {
+        consumer: {
+          select: {
+            id: true,
+            name: true,
+            houseNumber: true,
+            phone: true,
+          },
+        },
+        gp: {
+          select: {
+            id: true,
+            name: true,
+            village: true,
+            district: true,
+            state: true,
+            upiId: true,
+          },
+        },
+        ledger: true,
+      },
+    });
+
+    if (!bill) {
+      return res.status(404).json({ error: 'Bill not found' });
+    }
+
+    return res.status(200).json({ bill });
+  } catch (err) {
+    next(err);
+  }
+}
 
 /**
  * Generate Monthly Bills (POST /api/bills/generate) - Admin only
@@ -204,6 +424,9 @@ async function payBill(req, res, next) {
 }
 
 module.exports = {
+  listBills,
+  getDuesSummary,
+  getBill,
   generateBills,
   payBill,
 };
