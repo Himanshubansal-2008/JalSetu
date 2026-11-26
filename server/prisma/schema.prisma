@@ -171,14 +171,14 @@ model LedgerEntry {
 }
 
 model Consumer {
-  id            String   @id @default(uuid())
-  gpId          String
-  name          String
-  houseNo       String
-  phone         String?
-  monthlyCharge Int      // PAISE
-  active        Boolean  @default(true)
-  createdAt     DateTime @default(now())
+  id                 String   @id @default(uuid())
+  gpId               String
+  name               String
+  houseNumber        String
+  phone              String
+  monthlyChargePaise Int      // PAISE
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
 
   gp    GramPanchayat @relation(fields: [gpId], references: [id])
   bills Bill[]
@@ -187,16 +187,16 @@ model Consumer {
 }
 
 model Bill {
-  id         String     @id @default(uuid())
-  gpId       String
-  consumerId String
-  month      String     // "2026-11"
-  amount     Int        // PAISE
-  status     BillStatus @default(PENDING)
-  paidAt     DateTime?
-  mode       String?
-  reference  String?
-  createdAt  DateTime   @default(now())
+  id          String     @id @default(uuid())
+  gpId        String
+  consumerId  String
+  month       String     // "2026-11"
+  amountPaise Int        // PAISE
+  status      BillStatus @default(PENDING)
+  paidAt      DateTime?
+  mode        String?
+  reference   String?
+  createdAt   DateTime   @default(now())
 
   gp       GramPanchayat @relation(fields: [gpId], references: [id])
   consumer Consumer      @relation(fields: [consumerId], references: [id])
