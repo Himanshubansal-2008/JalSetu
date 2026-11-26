@@ -6,6 +6,7 @@ import AssetsStack from './AssetsStack';
 import AssetMapScreen from '../screens/AssetMapScreen';
 import InventoryStack from './InventoryStack';
 import FinanceStack from './FinanceStack';
+import ConsumersStack from './ConsumersStack';
 import { useAuthStore } from '../store/authStore';
 import { strings } from '../strings';
 import { colors } from '../theme';
@@ -67,7 +68,13 @@ export default function AdminTabs() {
           options={{ headerShown: false }}
         />
       )}
-      <Tab.Screen name={strings.consumers} component={PlaceholderScreen} />
+      {isAdmin && (
+        <Tab.Screen
+          name={strings.consumers}
+          component={ConsumersStack}
+          options={{ headerShown: false }}
+        />
+      )}
     </Tab.Navigator>
   );
 }
