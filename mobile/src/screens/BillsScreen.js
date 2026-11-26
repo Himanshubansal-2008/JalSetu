@@ -1,132 +1,581 @@
 /**
  * BillsScreen.js
- * Screen displaying monthly bills, dues summary, and bill status filters.
+ * Monthly Bills management screen in the JalKosh mobile app.
+ *
+ * Features:
+ * - Month selector (< / > arrows) with formatted month label
+ * - Top 3 metric summary cards: Billed, Collected (green), Pending (amber/red)
+ * - Prominent "Generate Bills" action with native Alert.alert confirmation
+ * - Filter chips (All, Pending, Paid) & search bar by name or house number
+ * - FlatList of bill cards with status highlights, Record Payment action, and Share Bill / PDF action
+ * - Robust pull-to-refresh, useFocusEffect, loading, and error-with-retry states
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   FlatList,
+  TextInput,
+  TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  TouchableOpacity,
+  Alert,
   StyleSheet,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import apiClient, { getErrorMessage } from '../api/apiClient';
+import { useAuthStore } from '../store/authStore';
 import { formatPaiseToRupees } from '../utils/currency';
 import { strings } from '../strings';
 import { colors, tones, spacing, radius } from '../theme';
 
+// Returns current local month in "YYYY-MM"
+function currentMonthString() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
+}
+
+// Shifts a "YYYY-MM" month string by delta months (+1 or -1)
+function shiftMonth(monthStr, delta) {
+  if (!monthStr || typeof monthStr !== 'string') return currentMonthString();
+  const [yStr, mStr] = monthStr.split('-');
+  let year = parseInt(yStr, 10);
+  let month = parseInt(mStr, 10) + delta;
+  while (month < 1) {
+    month += 12;
+    year -= 1;
+  }
+  while (month > 12) {
+    month -= 12;
+    year += 1;
+  }
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
+// Formats YYYY-MM to readable string e.g. "November 2026"
+function formatMonthName(monthStr) {
+  if (!monthStr || typeof monthStr !== 'string') return '';
+  const [yStr, mStr] = monthStr.split('-');
+  const year = parseInt(yStr, 10);
+  const month = parseInt(mStr, 10);
+  if (isNaN(year) || isNaN(month)) return monthStr;
+  const d = new Date(Date.UTC(year, month - 1, 1));
+  return d.toLocaleDateString('en-IN', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
+// Formats payment timestamp to short date e.g. "26 Nov"
+function formatPaidDateShort(dateVal) {
+  if (!dateVal) return '';
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+  });
+}
+
 export default function BillsScreen({ navigation }) {
+  const user = useAuthStore((state) => state.user);
+  const isAdmin =
+    user?.role === 'ADMIN' ||
+    user?.role === 'admin' ||
+    user?.role?.toUpperCase() === 'ADMIN';
+
+  // Period, search, and filter states
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthString);
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Data states
   const [bills, setBills] = useState([]);
   const [summary, setSummary] = useState(null);
-  const [statusFilter, setStatusFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
+  // Action states
+  const [generating, setGenerating] = useState(false);
+  const [payingBillId, setPayingBillId] = useState(null);
+
+  const hasDataRef = useRef(false);
+  const requestIdRef = useRef(0);
+
+  // Fetch bills and dues summary
   const fetchData = useCallback(
     async ({ isRefresh = false } = {}) => {
-      if (isRefresh) setRefreshing(true);
-      else setLoading(true);
+      const currentReqId = ++requestIdRef.current;
+      if (isRefresh) {
+        setRefreshing(true);
+      } else if (!hasDataRef.current) {
+        setLoading(true);
+      }
       setError('');
 
       try {
-        const params = {};
+        const billsParams = { month: selectedMonth };
         if (statusFilter !== 'ALL') {
-          params.status = statusFilter;
+          billsParams.status = statusFilter;
+        }
+        if (searchQuery && searchQuery.trim()) {
+          billsParams.search = searchQuery.trim();
         }
 
         const [billsRes, summaryRes] = await Promise.all([
-          apiClient.get('/bills', { params }),
-          apiClient.get('/bills/summary'),
+          apiClient.get('/bills', { params: billsParams }),
+          apiClient.get('/bills/summary', { params: { month: selectedMonth } }),
         ]);
+
+        if (currentReqId !== requestIdRef.current) return;
 
         setBills(billsRes.data?.bills || []);
         setSummary(summaryRes.data || null);
+        hasDataRef.current = true;
       } catch (err) {
+        if (currentReqId !== requestIdRef.current) return;
         setError(getErrorMessage(err));
       } finally {
-        setLoading(false);
-        setRefreshing(false);
+        if (currentReqId === requestIdRef.current) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     },
-    [statusFilter]
+    [selectedMonth, statusFilter, searchQuery]
   );
 
+  // Re-fetch on focus
   useFocusEffect(
     useCallback(() => {
       fetchData();
     }, [fetchData])
   );
 
+  // Month navigation
+  const handlePrevMonth = () => {
+    setSelectedMonth((prev) => shiftMonth(prev, -1));
+  };
+
+  const handleNextMonth = () => {
+    setSelectedMonth((prev) => shiftMonth(prev, 1));
+  };
+
+  // Search input change handler
+  const handleSearchChange = (text) => {
+    setSearchQuery(text);
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+  };
+
+  // Generate Bills Confirmation Flow
+  const handlePromptGenerateBills = () => {
+    if (!isAdmin || generating) return;
+
+    Alert.alert(
+      strings.generateBillsConfirmTitle || 'Generate Bills',
+      strings.generateBillsConfirmMessage
+        ? strings.generateBillsConfirmMessage.replace(
+            '{month}',
+            formatMonthName(selectedMonth)
+          )
+        : `Generate water bills for ${formatMonthName(selectedMonth)} for all active consumers?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Generate',
+          style: 'default',
+          onPress: executeGenerateBills,
+        },
+      ]
+    );
+  };
+
+  const executeGenerateBills = async () => {
+    setGenerating(true);
+    try {
+      const res = await apiClient.post('/bills/generate', {
+        month: selectedMonth,
+      });
+      const { createdCount = 0, skippedCount = 0 } = res.data || {};
+
+      Alert.alert(
+        'Bills Generated',
+        `${createdCount} created, ${skippedCount} skipped`
+      );
+
+      // Refresh list and summary
+      await fetchData({ isRefresh: true });
+    } catch (err) {
+      Alert.alert('Generation Failed', getErrorMessage(err));
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  // Record Payment Flow for Pending Bill
+  const handlePayBill = (bill) => {
+    if (!isAdmin) return;
+
+    Alert.alert(
+      'Record Payment',
+      `Record payment of ${formatPaiseToRupees(bill.amountPaise)} for ${bill.consumer?.name || 'Consumer'} (${bill.month})?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Pay via Cash',
+          onPress: () => executePayBill(bill.id, 'Cash'),
+        },
+        {
+          text: 'Pay via UPI',
+          onPress: () => executePayBill(bill.id, 'UPI'),
+        },
+      ]
+    );
+  };
+
+  const executePayBill = async (billId, mode) => {
+    setPayingBillId(billId);
+    try {
+      await apiClient.post(`/bills/${billId}/pay`, { mode });
+      // Refresh list and summary immediately
+      await fetchData({ isRefresh: true });
+    } catch (err) {
+      Alert.alert('Payment Failed', getErrorMessage(err));
+    } finally {
+      setPayingBillId(null);
+    }
+  };
+
+  // Share Bill / PDF Action
+  const handleShareBill = (bill) => {
+    Alert.alert(
+      strings.shareBill || 'Share Bill / PDF',
+      `Water tax receipt for ${bill.consumer?.name || 'Consumer'} (${bill.month}) is ready to share.`
+    );
+  };
+
+  // Render Bill Card
+  const renderBillCard = ({ item }) => {
+    const isPaid = item.status === 'PAID';
+    const isPaying = payingBillId === item.id;
+
+    return (
+      <View
+        style={[
+          styles.billCard,
+          isPaid ? styles.billCardPaid : styles.billCardPending,
+        ]}
+      >
+        {/* Top Row: Consumer Name, House Badge, and Amount */}
+        <View style={styles.cardHeaderRow}>
+          <View style={styles.consumerInfoCol}>
+            <View style={styles.nameRow}>
+              <Text style={styles.consumerName} numberOfLines={1}>
+                {item.consumer?.name || 'Consumer'}
+              </Text>
+              {item.consumer?.houseNumber ? (
+                <View style={styles.houseBadge}>
+                  <Text style={styles.houseBadgeText}>
+                    {item.consumer.houseNumber}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+
+            {item.reference ? (
+              <Text style={styles.billRefText}>Ref: {item.reference}</Text>
+            ) : null}
+          </View>
+
+          <Text style={styles.billAmountText}>
+            {formatPaiseToRupees(item.amountPaise)}
+          </Text>
+        </View>
+
+        {/* Bottom Row: Status Badge & Payment Action / Share Button */}
+        <View style={styles.cardFooterRow}>
+          {isPaid ? (
+            <View style={styles.paidInfoRow}>
+              <View style={styles.statusPillPaid}>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={12}
+                  color={tones.success.fg}
+                  style={{ marginRight: 4 }}
+                />
+                <Text style={styles.statusPillPaidText}>
+                  Paid • {item.mode || 'Cash'} • {formatPaidDateShort(item.paidAt)}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.shareBtn}
+                onPress={() => handleShareBill(item)}
+                accessibilityRole="button"
+                accessibilityLabel={strings.shareBill || 'Share Bill'}
+              >
+                <Ionicons
+                  name="share-outline"
+                  size={15}
+                  color={colors.primary}
+                  style={{ marginRight: 4 }}
+                />
+                <Text style={styles.shareBtnText}>Share</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.pendingActionRow}>
+              <View style={styles.statusPillPending}>
+                <Ionicons
+                  name="time-outline"
+                  size={12}
+                  color={tones.danger.fg}
+                  style={{ marginRight: 4 }}
+                />
+                <Text style={styles.statusPillPendingText}>Pending</Text>
+              </View>
+
+              {isAdmin ? (
+                <TouchableOpacity
+                  style={styles.payBtn}
+                  onPress={() => handlePayBill(item)}
+                  disabled={isPaying}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={strings.recordPayment || 'Record Payment'}
+                >
+                  {isPaying ? (
+                    <ActivityIndicator size="small" color={colors.white} />
+                  ) : (
+                    <>
+                      <Ionicons
+                        name="wallet-outline"
+                        size={14}
+                        color={colors.white}
+                        style={{ marginRight: 4 }}
+                      />
+                      <Text style={styles.payBtnText}>
+                        {strings.recordPayment || 'Record Payment'}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
-      {/* Top Summary Banner */}
-      {summary ? (
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryCol}>
-            <Text style={styles.summaryLabel}>Total Billed</Text>
-            <Text style={styles.summaryAmount}>
-              {formatPaiseToRupees(summary.totalBilledPaise)}
-            </Text>
-          </View>
-          <View style={styles.dividerVertical} />
-          <View style={styles.summaryCol}>
-            <Text style={styles.summaryLabel}>Collected</Text>
-            <Text style={[styles.summaryAmount, { color: tones.success.fg }]}>
-              {formatPaiseToRupees(summary.totalCollectedPaise)}
-            </Text>
-          </View>
-          <View style={styles.dividerVertical} />
-          <View style={styles.summaryCol}>
-            <Text style={styles.summaryLabel}>Pending</Text>
-            <Text style={[styles.summaryAmount, { color: tones.danger.fg }]}>
-              {formatPaiseToRupees(summary.totalPendingPaise)}
-            </Text>
-          </View>
-        </View>
-      ) : null}
+      {/* 1. Month Selector Header */}
+      <View style={styles.monthHeaderRow}>
+        <TouchableOpacity
+          style={styles.monthArrowButton}
+          onPress={handlePrevMonth}
+          accessibilityLabel="Previous month"
+        >
+          <Ionicons name="chevron-back" size={20} color={colors.primary} />
+        </TouchableOpacity>
 
-      {/* Filter Chips: ALL, PENDING, PAID */}
-      <View style={styles.filterRow}>
-        {['ALL', 'PENDING', 'PAID'].map((status) => {
-          const isSelected = statusFilter === status;
-          return (
-            <TouchableOpacity
-              key={status}
-              style={[
-                styles.filterChip,
-                isSelected && styles.filterChipSelected,
-              ]}
-              onPress={() => setStatusFilter(status)}
-              activeOpacity={0.8}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  isSelected && styles.filterChipTextSelected,
-                ]}
-              >
-                {status}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+        <View style={styles.monthBadge}>
+          <Ionicons
+            name="calendar-outline"
+            size={16}
+            color={colors.primary}
+            style={{ marginRight: 6 }}
+          />
+          <Text style={styles.monthText}>{formatMonthName(selectedMonth)}</Text>
+        </View>
+
+        <TouchableOpacity
+          style={styles.monthArrowButton}
+          onPress={handleNextMonth}
+          accessibilityLabel="Next month"
+        >
+          <Ionicons name="chevron-forward" size={20} color={colors.primary} />
+        </TouchableOpacity>
       </View>
 
-      {/* Error Banner */}
-      {error ? (
-        <View style={styles.errorBanner}>
-          <Text style={styles.errorText}>{error}</Text>
+      {/* 2. Top Metric Summary Cards (Billed, Collected, Pending) */}
+      <View style={styles.summaryContainer}>
+        {/* Billed Card */}
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryCardLabel}>
+            {strings.billedLabel || 'Billed'}
+          </Text>
+          <Text style={styles.summaryCardAmount}>
+            {formatPaiseToRupees(summary?.totalBilledPaise || 0)}
+          </Text>
+          <Text style={styles.summaryCardSubtitle}>
+            {summary?.totalBillsCount || 0} bills
+          </Text>
+        </View>
+
+        {/* Collected Card */}
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryCardLabel}>
+            {strings.collectedLabel || 'Collected'}
+          </Text>
+          <Text
+            style={[
+              styles.summaryCardAmount,
+              { color: tones.success.fg },
+            ]}
+          >
+            {formatPaiseToRupees(summary?.totalCollectedPaise || 0)}
+          </Text>
+          <Text style={styles.summaryCardSubtitle}>
+            {summary?.paidBillsCount || 0} paid
+          </Text>
+        </View>
+
+        {/* Pending Card */}
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryCardLabel}>
+            {strings.pendingLabel || 'Pending'}
+          </Text>
+          <Text
+            style={[
+              styles.summaryCardAmount,
+              { color: tones.danger.fg },
+            ]}
+          >
+            {formatPaiseToRupees(summary?.totalPendingPaise || 0)}
+          </Text>
+          <Text style={styles.summaryCardSubtitle}>
+            {summary?.pendingBillsCount || 0} unpaid
+          </Text>
+        </View>
+      </View>
+
+      {/* 3. Generate Bills Action Button (Admin Only) */}
+      {isAdmin ? (
+        <View style={styles.generateButtonSection}>
+          <TouchableOpacity
+            style={[
+              styles.generateButton,
+              generating && styles.generateButtonDisabled,
+            ]}
+            onPress={handlePromptGenerateBills}
+            disabled={generating}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={strings.generateBills || 'Generate Bills'}
+          >
+            {generating ? (
+              <ActivityIndicator size="small" color={colors.white} />
+            ) : (
+              <>
+                <Ionicons
+                  name="flash-outline"
+                  size={16}
+                  color={colors.white}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={styles.generateButtonText}>
+                  {strings.generateBills || 'Generate Bills'} for{' '}
+                  {formatMonthName(selectedMonth)}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
       ) : null}
 
-      {/* Bills List */}
-      {loading ? (
+      {/* 4. Filter Chips & Search Bar */}
+      <View style={styles.filterSection}>
+        {/* Search Bar */}
+        <View style={styles.searchBar}>
+          <Ionicons
+            name="search-outline"
+            size={16}
+            color={colors.muted}
+            style={{ marginRight: spacing.xs }}
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder={
+              strings.searchBillsPlaceholder ||
+              'Search by consumer name or house number...'
+            }
+            placeholderTextColor={colors.muted}
+            value={searchQuery}
+            onChangeText={handleSearchChange}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchQuery ? (
+            <TouchableOpacity onPress={handleClearSearch} style={{ padding: 4 }}>
+              <Ionicons name="close-circle" size={16} color={colors.muted} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+        {/* Filter Chips */}
+        <View style={styles.chipsRow}>
+          {[
+            { key: 'ALL', label: strings.allFilter || 'All' },
+            { key: 'PENDING', label: strings.pendingFilter || 'Pending' },
+            { key: 'PAID', label: strings.paidFilter || 'Paid' },
+          ].map((chip) => {
+            const isSelected = statusFilter === chip.key;
+            return (
+              <TouchableOpacity
+                key={chip.key}
+                style={[
+                  styles.filterChip,
+                  isSelected && styles.filterChipSelected,
+                ]}
+                onPress={() => setStatusFilter(chip.key)}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    isSelected && styles.filterChipTextSelected,
+                  ]}
+                >
+                  {chip.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* Error Banner with Retry */}
+      {error ? (
+        <View style={styles.errorBanner}>
+          <Ionicons
+            name="alert-circle-outline"
+            size={18}
+            color={colors.danger}
+            style={{ marginRight: spacing.xs }}
+          />
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity
+            onPress={() => fetchData()}
+            style={styles.retryButton}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
+      {/* 5. Bills List */}
+      {loading && !refreshing ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -134,6 +583,7 @@ export default function BillsScreen({ navigation }) {
         <FlatList
           data={bills}
           keyExtractor={(item) => item.id}
+          renderItem={renderBillCard}
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl
@@ -142,67 +592,30 @@ export default function BillsScreen({ navigation }) {
               colors={[colors.primary]}
             />
           }
-          renderItem={({ item }) => {
-            const isPaid = item.status === 'PAID';
-            return (
-              <View style={styles.billCard}>
-                <View style={styles.billHeader}>
-                  <Text style={styles.consumerName}>
-                    {item.consumer?.name || 'Consumer'}
-                  </Text>
-                  <View style={styles.houseBadge}>
-                    <Text style={styles.houseText}>
-                      {item.consumer?.houseNumber || ''}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.billDetailsRow}>
-                  <Text style={styles.monthText}>Month: {item.month}</Text>
-                  <Text style={styles.amountText}>
-                    {formatPaiseToRupees(item.amountPaise)}
-                  </Text>
-                </View>
-
-                <View style={styles.billFooter}>
-                  <View
-                    style={[
-                      styles.statusPill,
-                      {
-                        backgroundColor: isPaid
-                          ? tones.success.bg
-                          : tones.danger.bg,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.statusPillText,
-                        {
-                          color: isPaid ? tones.success.fg : tones.danger.fg,
-                        },
-                      ]}
-                    >
-                      {item.status}
-                    </Text>
-                  </View>
-
-                  {item.mode ? (
-                    <Text style={styles.modeText}>Paid via {item.mode}</Text>
-                  ) : null}
-                </View>
-              </View>
-            );
-          }}
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
+            <View style={styles.emptyCard}>
               <Ionicons
                 name="receipt-outline"
-                size={48}
+                size={44}
                 color={colors.muted}
-                style={{ marginBottom: spacing.sm }}
+                style={{ marginBottom: spacing.xs }}
               />
-              <Text style={styles.emptyText}>No bills found</Text>
+              <Text style={styles.emptyTitle}>
+                {searchQuery
+                  ? 'No bills match your search'
+                  : strings.noBillsForMonth ||
+                    'No bills generated for this month yet'}
+              </Text>
+              {isAdmin && !searchQuery && bills.length === 0 ? (
+                <TouchableOpacity
+                  style={styles.emptyActionBtn}
+                  onPress={handlePromptGenerateBills}
+                >
+                  <Text style={styles.emptyActionBtnText}>
+                    Generate Bills Now
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           }
         />
@@ -220,33 +633,42 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: spacing.xl * 2,
   },
-  summaryCard: {
+  monthHeaderRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: colors.white,
-    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  summaryCol: {
-    flex: 1,
+  monthArrowButton: {
+    width: 36,
+    height: 36,
     alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  dividerVertical: {
-    width: 1,
-    backgroundColor: colors.border,
+  monthBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.pill,
+    backgroundColor: tones.info.bg,
   },
-  summaryLabel: {
-    fontSize: 11,
-    color: colors.muted,
-    marginBottom: 2,
-  },
-  summaryAmount: {
-    fontSize: 14,
+  monthText: {
+    fontSize: 15,
     fontWeight: '700',
-    color: colors.text,
+    color: colors.primary,
   },
-  filterRow: {
+  summaryContainer: {
     flexDirection: 'row',
     padding: spacing.md,
     gap: spacing.sm,
@@ -254,9 +676,89 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  summaryCard: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.xs + 2,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  summaryCardLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.muted,
+    marginBottom: 2,
+    textTransform: 'uppercase',
+  },
+  summaryCardAmount: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  summaryCardSubtitle: {
+    fontSize: 10,
+    color: colors.muted,
+    marginTop: 2,
+  },
+  generateButtonSection: {
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  generateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.sm + 3,
+    borderRadius: radius.md,
+    minHeight: 44,
+  },
+  generateButtonDisabled: {
+    opacity: 0.7,
+  },
+  generateButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.white,
+  },
+  filterSection: {
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm,
+    height: 38,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.xs + 2,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.text,
+    paddingVertical: 0,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    gap: spacing.xs + 2,
+    marginTop: spacing.xs,
+  },
   filterChip: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
+    paddingVertical: 5,
     borderRadius: radius.pill,
     backgroundColor: colors.background,
     borderWidth: 1,
@@ -275,6 +777,8 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
   errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: tones.danger.bg,
     padding: spacing.md,
     margin: spacing.md,
@@ -283,8 +787,21 @@ const styles = StyleSheet.create({
     borderColor: colors.danger,
   },
   errorText: {
-    color: tones.danger.fg,
+    flex: 1,
     fontSize: 13,
+    color: tones.danger.fg,
+    fontWeight: '600',
+  },
+  retryButton: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    backgroundColor: colors.danger,
+    borderRadius: radius.sm,
+  },
+  retryButtonText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.white,
   },
   listContent: {
     padding: spacing.md,
@@ -297,12 +814,34 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm + 2,
     borderWidth: 1,
     borderColor: colors.border,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  billHeader: {
+  billCardPaid: {
+    borderLeftWidth: 4,
+    borderLeftColor: tones.success.fg,
+  },
+  billCardPending: {
+    borderLeftWidth: 4,
+    borderLeftColor: tones.danger.fg,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  consumerInfoCol: {
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xs,
+    flexWrap: 'wrap',
+    gap: 6,
   },
   consumerName: {
     fontSize: 15,
@@ -311,59 +850,125 @@ const styles = StyleSheet.create({
   },
   houseBadge: {
     backgroundColor: '#F1F5F9',
-    paddingHorizontal: spacing.xs + 2,
+    paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
   },
-  houseText: {
+  houseBadgeText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: colors.muted,
-  },
-  billDetailsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginVertical: spacing.xs,
-  },
-  monthText: {
-    fontSize: 13,
-    color: colors.muted,
-  },
-  amountText: {
-    fontSize: 15,
     fontWeight: '700',
+    color: colors.muted,
+  },
+  billRefText: {
+    fontSize: 11,
+    color: colors.muted,
+    marginTop: 2,
+  },
+  billAmountText: {
+    fontSize: 16,
+    fontWeight: '800',
     color: colors.text,
   },
-  billFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.xs,
+  cardFooterRow: {
+    marginTop: spacing.sm,
     paddingTop: spacing.xs + 2,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: '#F8FAFC',
   },
-  statusPill: {
+  paidInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statusPillPaid: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: tones.success.bg,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+    flexShrink: 1,
+  },
+  statusPillPaidText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: tones.success.fg,
+  },
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: tones.info.bg,
+  },
+  shareBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  pendingActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statusPillPending: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: tones.danger.bg,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: radius.pill,
   },
-  statusPillText: {
+  statusPillPendingText: {
     fontSize: 11,
     fontWeight: '700',
+    color: tones.danger.fg,
   },
-  modeText: {
-    fontSize: 11,
-    color: colors.muted,
+  payBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.sm + 2,
+    minHeight: 32,
   },
-  emptyContainer: {
-    paddingVertical: spacing.xl * 2,
+  payBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.white,
+  },
+  emptyCard: {
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    padding: spacing.xl,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: spacing.md,
   },
-  emptyText: {
-    fontSize: 14,
+  emptyTitle: {
+    fontSize: 13,
     color: colors.muted,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  emptyActionBtn: {
+    marginTop: spacing.md,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 3,
+    borderRadius: radius.sm + 2,
+  },
+  emptyActionBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.white,
   },
 });

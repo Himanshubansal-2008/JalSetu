@@ -241,7 +241,7 @@ export default function ConsumersScreen({ navigation }) {
             onPress={() => navigation.navigate('BillsList')}
             activeOpacity={0.8}
             accessibilityRole="button"
-            accessibilityLabel={strings.viewBills}
+            accessibilityLabel={strings.monthlyBills}
           >
             <Ionicons
               name="receipt-outline"
@@ -249,7 +249,7 @@ export default function ConsumersScreen({ navigation }) {
               color={colors.primary}
               style={{ marginRight: 5 }}
             />
-            <Text style={styles.billsJumpButtonText}>{strings.viewBills}</Text>
+            <Text style={styles.billsJumpButtonText}>{strings.monthlyBills}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
