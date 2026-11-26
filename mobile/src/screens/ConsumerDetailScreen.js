@@ -25,6 +25,7 @@ import { formatDisplay, isoToDateString } from '../utils/dateUtil';
 import { strings } from '../strings';
 import { colors, tones, spacing, radius } from '../theme';
 import PayBillModal from '../components/PayBillModal';
+import { generateAndShareBillPdf } from '../utils/billPdf';
 
 // Formats YYYY-MM to readable string e.g. "November 2026"
 function formatMonthName(monthStr) {
@@ -71,6 +72,7 @@ export default function ConsumerDetailScreen({ route, navigation }) {
   const [payingBillId, setPayingBillId] = useState(null);
   const [selectedBillForPay, setSelectedBillForPay] = useState(null);
   const [payModalVisible, setPayModalVisible] = useState(false);
+  const [sharingPdfBillId, setSharingPdfBillId] = useState(null);
 
   const hasDataRef = useRef(!!initialConsumer);
   const requestIdRef = useRef(0);
@@ -153,6 +155,20 @@ export default function ConsumerDetailScreen({ route, navigation }) {
     };
     setSelectedBillForPay(billWithConsumer);
     setPayModalVisible(true);
+  };
+
+  // Share Bill / Receipt PDF
+  const handleShareBill = async (bill) => {
+    if (sharingPdfBillId) return;
+    setSharingPdfBillId(bill.id);
+    try {
+      await generateAndShareBillPdf({
+        bill,
+        consumer: bill.consumer || consumer,
+      });
+    } finally {
+      setSharingPdfBillId(null);
+    }
   };
 
   const submitPayment = async (billId, mode) => {
@@ -376,19 +392,45 @@ export default function ConsumerDetailScreen({ route, navigation }) {
                   {/* Bottom Bill Info Row: Status Pill & Payment Info / Pay Now Button */}
                   <View style={styles.billBottomRow}>
                     {isPaid ? (
-                      <View style={styles.paidStatusRow}>
-                        <View style={styles.statusPillPaid}>
-                          <Ionicons
-                            name="checkmark-circle"
-                            size={12}
-                            color={tones.success.fg}
-                            style={{ marginRight: 4 }}
-                          />
-                          <Text style={styles.statusPillPaidText}>PAID</Text>
+                      <View style={styles.paidInfoRow}>
+                        <View style={styles.paidStatusWrap}>
+                          <View style={styles.statusPillPaid}>
+                            <Ionicons
+                              name="checkmark-circle"
+                              size={12}
+                              color={tones.success.fg}
+                              style={{ marginRight: 4 }}
+                            />
+                            <Text style={styles.statusPillPaidText}>PAID</Text>
+                          </View>
+                          <Text style={styles.paidMetaText} numberOfLines={1}>
+                            Paid on {formatPaymentDate(bill.paidAt)} • {bill.mode || 'Cash'}
+                          </Text>
                         </View>
-                        <Text style={styles.paidMetaText} numberOfLines={1}>
-                          Paid on {formatPaymentDate(bill.paidAt)} • {bill.mode || 'Cash'}
-                        </Text>
+
+                        <TouchableOpacity
+                          style={styles.shareBtn}
+                          onPress={() => handleShareBill(bill)}
+                          disabled={sharingPdfBillId === bill.id}
+                          accessibilityRole="button"
+                          accessibilityLabel={strings.shareReceiptPdf || 'Share Receipt PDF'}
+                        >
+                          {sharingPdfBillId === bill.id ? (
+                            <ActivityIndicator size="small" color={colors.primary} />
+                          ) : (
+                            <>
+                              <Ionicons
+                                name="share-outline"
+                                size={14}
+                                color={colors.primary}
+                                style={{ marginRight: 4 }}
+                              />
+                              <Text style={styles.shareBtnText}>
+                                {strings.shareReceiptPdf || 'Share Receipt'}
+                              </Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
                       </View>
                     ) : (
                       <View style={styles.pendingActionRow}>
@@ -402,33 +444,59 @@ export default function ConsumerDetailScreen({ route, navigation }) {
                           <Text style={styles.statusPillPendingText}>DUE</Text>
                         </View>
 
-                        {/* Pay Now Button */}
-                        {isAdmin ? (
+                        <View style={styles.pendingButtonsRow}>
                           <TouchableOpacity
-                            style={styles.payNowBtn}
-                            onPress={() => handlePayNow(bill)}
-                            disabled={isPaying}
-                            activeOpacity={0.8}
+                            style={styles.shareBtn}
+                            onPress={() => handleShareBill(bill)}
+                            disabled={sharingPdfBillId === bill.id}
                             accessibilityRole="button"
-                            accessibilityLabel={`${strings.payNow} for ${bill.month}`}
+                            accessibilityLabel={strings.shareBillPdf || 'Share Bill PDF'}
                           >
-                            {isPaying ? (
-                              <ActivityIndicator size="small" color={colors.white} />
+                            {sharingPdfBillId === bill.id ? (
+                              <ActivityIndicator size="small" color={colors.primary} />
                             ) : (
                               <>
                                 <Ionicons
-                                  name="wallet-outline"
-                                  size={13}
-                                  color={colors.white}
+                                  name="share-outline"
+                                  size={14}
+                                  color={colors.primary}
                                   style={{ marginRight: 4 }}
                                 />
-                                <Text style={styles.payNowBtnText}>
-                                  {strings.payNow}
+                                <Text style={styles.shareBtnText}>
+                                  {strings.shareBillPdf || 'Share Bill'}
                                 </Text>
                               </>
                             )}
                           </TouchableOpacity>
-                        ) : null}
+
+                          {/* Pay Now Button */}
+                          {isAdmin ? (
+                            <TouchableOpacity
+                              style={styles.payNowBtn}
+                              onPress={() => handlePayNow(bill)}
+                              disabled={isPaying}
+                              activeOpacity={0.8}
+                              accessibilityRole="button"
+                              accessibilityLabel={`${strings.payNow} for ${bill.month}`}
+                            >
+                              {isPaying ? (
+                                <ActivityIndicator size="small" color={colors.white} />
+                              ) : (
+                                <>
+                                  <Ionicons
+                                    name="wallet-outline"
+                                    size={13}
+                                    color={colors.white}
+                                    style={{ marginRight: 4 }}
+                                  />
+                                  <Text style={styles.payNowBtnText}>
+                                    {strings.payNow}
+                                  </Text>
+                                </>
+                              )}
+                            </TouchableOpacity>
+                          ) : null}
+                        </View>
                       </View>
                     )}
                   </View>
@@ -755,6 +823,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  paidInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  paidStatusWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: tones.info.bg,
+  },
+  shareBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  pendingButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   statusPillPaid: {
     flexDirection: 'row',

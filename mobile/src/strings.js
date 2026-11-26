@@ -178,6 +178,7 @@ export const strings = {
   pendingFilter: 'Pending',
   paidFilter: 'Paid',
   shareBill: 'Share Bill / PDF',
+  shareBillPdf: 'Share Bill PDF',
   generatingBills: 'Generating bills...',
   payBillTitle: 'Record Bill Payment',
   confirmPayment: 'Confirm Payment',

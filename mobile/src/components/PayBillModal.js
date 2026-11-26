@@ -33,6 +33,7 @@ import apiClient, { getErrorMessage } from '../api/apiClient';
 import { formatPaiseToRupees } from '../utils/currency';
 import { strings } from '../strings';
 import { colors, tones, spacing, radius } from '../theme';
+import { generateAndShareBillPdf } from '../utils/billPdf';
 
 // Helper to format "YYYY-MM" to "Month Year" (e.g. "November 2026")
 function formatMonthName(monthStr) {
@@ -66,6 +67,7 @@ export default function PayBillModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [successData, setSuccessData] = useState(null);
+  const [sharingPdf, setSharingPdf] = useState(false);
 
   // Reset form states when modal opens or bill changes
   useEffect(() => {
@@ -75,6 +77,7 @@ export default function PayBillModal({
       setSubmitting(false);
       setError('');
       setSuccessData(null);
+      setSharingPdf(false);
     }
   }, [visible, bill?.id]);
 
@@ -125,11 +128,27 @@ export default function PayBillModal({
   };
 
   // Share Receipt PDF handler
-  const handleShareReceipt = () => {
-    Alert.alert(
-      strings.shareReceiptPdf,
-      `Receipt for ${consumerName} (${amountFormatted}) is ready. PDF sharing is configured for this bill.`
-    );
+  const handleShareReceipt = async () => {
+    if (sharingPdf) return;
+    setSharingPdf(true);
+    try {
+      const paidBill = {
+        ...bill,
+        ...(successData?.bill || {}),
+        status: 'PAID',
+        paidAt: successData?.bill?.paidAt || new Date().toISOString(),
+        mode,
+        reference: reference.trim() || null,
+      };
+
+      await generateAndShareBillPdf({
+        bill: paidBill,
+        consumer: bill.consumer,
+        gp: bill.gp,
+      });
+    } finally {
+      setSharingPdf(false);
+    }
   };
 
   // Dismiss on Done or close after success -> triggers auto-refresh on caller
@@ -275,21 +294,34 @@ export default function PayBillModal({
                   {/* Actions: Share Receipt PDF & Done */}
                   <View style={styles.successActions}>
                     <TouchableOpacity
-                      style={styles.shareReceiptBtn}
+                      style={[
+                        styles.shareReceiptBtn,
+                        sharingPdf && styles.buttonDisabled,
+                      ]}
                       onPress={handleShareReceipt}
+                      disabled={sharingPdf}
                       activeOpacity={0.8}
                       accessibilityRole="button"
                       accessibilityLabel={strings.shareReceiptPdf}
                     >
-                      <Ionicons
-                        name="share-social-outline"
-                        size={18}
-                        color={colors.primary}
-                        style={{ marginRight: 6 }}
-                      />
-                      <Text style={styles.shareReceiptBtnText}>
-                        {strings.shareReceiptPdf}
-                      </Text>
+                      {sharingPdf ? (
+                        <ActivityIndicator
+                          size="small"
+                          color={colors.primary}
+                        />
+                      ) : (
+                        <>
+                          <Ionicons
+                            name="share-social-outline"
+                            size={18}
+                            color={colors.primary}
+                            style={{ marginRight: 6 }}
+                          />
+                          <Text style={styles.shareReceiptBtnText}>
+                            {strings.shareReceiptPdf}
+                          </Text>
+                        </>
+                      )}
                     </TouchableOpacity>
 
                     <TouchableOpacity

@@ -31,6 +31,7 @@ import { formatPaiseToRupees } from '../utils/currency';
 import { strings } from '../strings';
 import { colors, tones, spacing, radius } from '../theme';
 import PayBillModal from '../components/PayBillModal';
+import { generateAndShareBillPdf } from '../utils/billPdf';
 
 // Returns current local month in "YYYY-MM"
 function currentMonthString() {
@@ -107,6 +108,7 @@ export default function BillsScreen({ navigation }) {
   const [payingBillId, setPayingBillId] = useState(null);
   const [selectedBillForPay, setSelectedBillForPay] = useState(null);
   const [payModalVisible, setPayModalVisible] = useState(false);
+  const [sharingPdfBillId, setSharingPdfBillId] = useState(null);
 
   const hasDataRef = useRef(false);
   const requestIdRef = useRef(0);
@@ -245,11 +247,18 @@ export default function BillsScreen({ navigation }) {
   };
 
   // Share Bill / PDF Action
-  const handleShareBill = (bill) => {
-    Alert.alert(
-      strings.shareBill || 'Share Bill / PDF',
-      `Water tax receipt for ${bill.consumer?.name || 'Consumer'} (${bill.month}) is ready to share.`
-    );
+  const handleShareBill = async (bill) => {
+    if (sharingPdfBillId) return;
+    setSharingPdfBillId(bill.id);
+    try {
+      await generateAndShareBillPdf({
+        bill,
+        consumer: bill.consumer,
+        gp: bill.gp,
+      });
+    } finally {
+      setSharingPdfBillId(null);
+    }
   };
 
   // Render Bill Card
@@ -309,16 +318,25 @@ export default function BillsScreen({ navigation }) {
               <TouchableOpacity
                 style={styles.shareBtn}
                 onPress={() => handleShareBill(item)}
+                disabled={sharingPdfBillId === item.id}
                 accessibilityRole="button"
-                accessibilityLabel={strings.shareBill || 'Share Bill'}
+                accessibilityLabel={strings.shareReceiptPdf || 'Share Receipt PDF'}
               >
-                <Ionicons
-                  name="share-outline"
-                  size={15}
-                  color={colors.primary}
-                  style={{ marginRight: 4 }}
-                />
-                <Text style={styles.shareBtnText}>Share</Text>
+                {sharingPdfBillId === item.id ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <>
+                    <Ionicons
+                      name="share-outline"
+                      size={14}
+                      color={colors.primary}
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text style={styles.shareBtnText}>
+                      {strings.shareReceiptPdf || 'Share Receipt'}
+                    </Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
           ) : (
@@ -333,32 +351,58 @@ export default function BillsScreen({ navigation }) {
                 <Text style={styles.statusPillPendingText}>Pending</Text>
               </View>
 
-              {isAdmin ? (
+              <View style={styles.pendingButtonsRow}>
                 <TouchableOpacity
-                  style={styles.payBtn}
-                  onPress={() => handlePayBill(item)}
-                  disabled={isPaying}
-                  activeOpacity={0.8}
+                  style={styles.shareBtn}
+                  onPress={() => handleShareBill(item)}
+                  disabled={sharingPdfBillId === item.id}
                   accessibilityRole="button"
-                  accessibilityLabel={strings.recordPayment || 'Record Payment'}
+                  accessibilityLabel={strings.shareBillPdf || 'Share Bill PDF'}
                 >
-                  {isPaying ? (
-                    <ActivityIndicator size="small" color={colors.white} />
+                  {sharingPdfBillId === item.id ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
                   ) : (
                     <>
                       <Ionicons
-                        name="wallet-outline"
+                        name="share-outline"
                         size={14}
-                        color={colors.white}
+                        color={colors.primary}
                         style={{ marginRight: 4 }}
                       />
-                      <Text style={styles.payBtnText}>
-                        {strings.recordPayment || 'Record Payment'}
+                      <Text style={styles.shareBtnText}>
+                        {strings.shareBillPdf || 'Share Bill'}
                       </Text>
                     </>
                   )}
                 </TouchableOpacity>
-              ) : null}
+
+                {isAdmin ? (
+                  <TouchableOpacity
+                    style={styles.payBtn}
+                    onPress={() => handlePayBill(item)}
+                    disabled={isPaying}
+                    activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel={strings.recordPayment || 'Record Payment'}
+                  >
+                    {isPaying ? (
+                      <ActivityIndicator size="small" color={colors.white} />
+                    ) : (
+                      <>
+                        <Ionicons
+                          name="wallet-outline"
+                          size={14}
+                          color={colors.white}
+                          style={{ marginRight: 4 }}
+                        />
+                        <Text style={styles.payBtnText}>
+                          {strings.recordPayment || 'Record Payment'}
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                ) : null}
+              </View>
             </View>
           )}
         </View>
@@ -914,6 +958,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: colors.primary,
+  },
+  pendingButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   pendingActionRow: {
     flexDirection: 'row',
