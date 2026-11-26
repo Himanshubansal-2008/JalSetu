@@ -1,6 +1,6 @@
 const express = require('express');
 const { authenticate } = require('../middleware/authMiddleware');
-const { generateBills } = require('../controllers/billController');
+const { generateBills, payBill } = require('../controllers/billController');
 
 const router = express.Router();
 
@@ -22,5 +22,8 @@ router.use(requireAdmin);
 
 // Generate Monthly Bills: POST /api/bills/generate
 router.post('/generate', generateBills);
+
+// Atomic Bill Payment: POST /api/bills/:id/pay
+router.post('/:id/pay', payBill);
 
 module.exports = router;
