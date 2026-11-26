@@ -106,7 +106,7 @@ export default function ConsumerDetailScreen({ route, navigation }) {
   // Fetch consumer details from backend
   const fetchConsumer = useCallback(
     async ({ isRefresh = false } = {}) => {
-      if (!consumerId) return;
+      if (!consumerId || !isAdmin) return;
 
       const currentReqId = ++requestIdRef.current;
       if (isRefresh) {
@@ -188,6 +188,17 @@ export default function ConsumerDetailScreen({ route, navigation }) {
   const totalDues = consumer?.totalDuesPaise ?? consumer?.pendingDuesPaise ?? 0;
   const totalPaid = consumer?.totalPaidPaise ?? 0;
   const bills = consumer?.bills || [];
+
+  // Admin route guard
+  if (!isAdmin) {
+    return (
+      <View style={styles.guardContainer}>
+        <Ionicons name="shield-outline" size={56} color={colors.muted} />
+        <Text style={styles.guardTitle}>{strings.adminAccessOnly}</Text>
+        <Text style={styles.guardMessage}>{strings.adminAccessOnlyMessage}</Text>
+      </View>
+    );
+  }
 
   return (
     <>
@@ -856,6 +867,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+  },
+  guardContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+    backgroundColor: colors.background,
+  },
+  guardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  guardMessage: {
+    fontSize: 14,
+    color: colors.muted,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   statusPillPaid: {
     flexDirection: 'row',

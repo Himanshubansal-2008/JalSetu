@@ -38,7 +38,7 @@ export default function RootNavigator() {
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Signup" component={SignupScreen} />
           </>
-        ) : user.role === 'ADMIN' ? (
+        ) : (user.role === 'ADMIN' || user.role === 'admin' || user.role?.toUpperCase() === 'ADMIN') ? (
           <Stack.Screen name="AdminRoot" component={AdminTabs} />
         ) : (
           <Stack.Screen name="WorkerRoot" component={WorkerTabs} />

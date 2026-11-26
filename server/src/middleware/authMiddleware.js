@@ -23,8 +23,10 @@ const authenticate = (req, res, next) => {
 
 // Middleware to enforce role-based access control
 const requireRole = (...roles) => {
+  const normalized = roles.map((r) => r.toUpperCase());
   return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    const userRole = req.user?.role?.toUpperCase();
+    if (!req.user || !userRole || !normalized.includes(userRole)) {
       return res.status(403).json({ error: 'Not allowed' });
     }
     next();

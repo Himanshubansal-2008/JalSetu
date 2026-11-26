@@ -116,6 +116,8 @@ export default function BillsScreen({ navigation }) {
   // Fetch bills and dues summary
   const fetchData = useCallback(
     async ({ isRefresh = false } = {}) => {
+      if (!isAdmin) return;
+
       const currentReqId = ++requestIdRef.current;
       if (isRefresh) {
         setRefreshing(true);
@@ -409,6 +411,17 @@ export default function BillsScreen({ navigation }) {
       </View>
     );
   };
+
+  // Admin route guard
+  if (!isAdmin) {
+    return (
+      <View style={styles.guardContainer}>
+        <Ionicons name="shield-outline" size={56} color={colors.muted} />
+        <Text style={styles.guardTitle}>{strings.adminAccessOnly}</Text>
+        <Text style={styles.guardMessage}>{strings.adminAccessOnlyMessage}</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -963,6 +976,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+  },
+  guardContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+    backgroundColor: colors.background,
+  },
+  guardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  guardMessage: {
+    fontSize: 14,
+    color: colors.muted,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   pendingActionRow: {
     flexDirection: 'row',
