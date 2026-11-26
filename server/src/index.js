@@ -26,8 +26,11 @@ app.use('/api/inventory', require('./routes/inventoryRoute'));
 // Finance routes
 app.use('/api/finance', require('./routes/financeRoute'));
 
-// Consumer billing routes
+// Consumer routes
 app.use('/api/consumers', require('./routes/consumerRoute'));
+
+// Bill routes
+app.use('/api/bills', require('./routes/billRoute'));
 
 // 404 handler for unmatched routes
 app.use((req, res, next) => {
