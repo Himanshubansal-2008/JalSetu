@@ -24,6 +24,7 @@ function publicUser(user) {
     phone: user.phone,
     role: user.role,
     gpId: user.gpId,
+    isActive: Boolean(user.isActive !== undefined ? user.isActive : user.active),
   };
 }
 
@@ -125,8 +126,8 @@ router.post('/login', async (req, res, next) => {
       where: { phone },
     });
 
-    // Check user existence and active status
-    if (!user || !user.active) {
+    // Check user existence
+    if (!user) {
       return res.status(401).json({ error: 'Invalid phone or password' });
     }
 
@@ -134,6 +135,14 @@ router.post('/login', async (req, res, next) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ error: 'Invalid phone or password' });
+    }
+
+    // Check active status after verifying credentials
+    const isActive = Boolean(user.isActive !== undefined ? user.isActive : user.active);
+    if (!isActive) {
+      return res.status(403).json({
+        error: 'Account is deactivated. Contact your Gram Panchayat admin.',
+      });
     }
 
     // Generate token and return
@@ -155,8 +164,11 @@ router.get('/me', authenticate, async (req, res, next) => {
       include: { gp: true },
     });
 
-    if (!user || !user.active) {
-      return res.status(401).json({ error: 'Account disabled' });
+    const isActive = Boolean(user?.isActive !== undefined ? user?.isActive : user?.active);
+    if (!user || !isActive) {
+      return res.status(403).json({
+        error: 'Account is deactivated. Contact your Gram Panchayat admin.',
+      });
     }
 
     const { gp, ...userData } = user;

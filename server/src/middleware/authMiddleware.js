@@ -1,23 +1,61 @@
 const jwt = require('jsonwebtoken');
+const prisma = require('../prisma');
 
-// Middleware to authenticate requests via JWT Bearer token
-const authenticate = (req, res, next) => {
+// Middleware to authenticate requests via JWT Bearer token and enforce active account
+const authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Not logged in' });
   }
 
   const token = authHeader.split(' ')[1];
+  let payload;
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = {
-      id: payload.id,
-      role: payload.role,
-      gpId: payload.gpId,
-    };
-    next();
+    payload = jwt.verify(token, process.env.JWT_SECRET);
   } catch (err) {
     return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+
+  if (!payload || !payload.id) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+
+  try {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: payload.id },
+      select: {
+        id: true,
+        role: true,
+        gpId: true,
+        name: true,
+        phone: true,
+        isActive: true,
+      },
+    });
+
+    if (!dbUser) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    if (!dbUser.isActive) {
+      return res.status(403).json({
+        error: 'Account is deactivated. Contact your Gram Panchayat admin.',
+      });
+    }
+
+    req.user = {
+      id: dbUser.id,
+      role: dbUser.role,
+      gpId: dbUser.gpId,
+      name: dbUser.name,
+      phone: dbUser.phone,
+      isActive: dbUser.isActive,
+    };
+
+    next();
+  } catch (err) {
+    console.error('Authentication error:', err);
+    return res.status(500).json({ error: 'Authentication failed' });
   }
 };
 

@@ -1,0 +1,25 @@
+const express = require('express');
+const { authenticate, requireRole } = require('../middleware/authMiddleware');
+const {
+  listWorkers,
+  createWorker,
+  updateWorkerStatus,
+} = require('../controllers/workerController');
+
+const router = express.Router();
+
+// All worker management routes require authentication and ADMIN role
+router.use(authenticate);
+router.use(requireRole('ADMIN'));
+
+// GET /api/workers - List workers for current GP
+router.get('/', listWorkers);
+
+// POST /api/workers - Create new worker for current GP
+router.post('/', createWorker);
+
+// PATCH /api/workers/:id/status - Update worker active status
+router.patch('/:id/status', updateWorkerStatus);
+router.put('/:id/status', updateWorkerStatus);
+
+module.exports = router;

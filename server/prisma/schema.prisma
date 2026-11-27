@@ -69,7 +69,7 @@ model User {
   phone     String   @unique
   password  String
   role      Role     @default(WORKER)
-  active    Boolean  @default(true)
+  isActive  Boolean  @default(true) @map("active")
   createdAt DateTime @default(now())
 
   gp            GramPanchayat @relation(fields: [gpId], references: [id])
