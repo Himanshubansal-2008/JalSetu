@@ -1,11 +1,15 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
-import apiClient from '../api/apiClient';
+import apiClient, { registerUnauthorizedHandler, reset401Lock } from '../api/apiClient';
 
-export const useAuthStore = create((set) => ({
+export const useAuthStore = create((set, get) => ({
   user: null,
   gp: null,
   loading: true,
+  sessionExpiredNotice: '',
+
+  // Clear notice manually or on login
+  clearSessionExpiredNotice: () => set({ sessionExpiredNotice: '' }),
 
   // Restore session from SecureStore on startup
   restore: async () => {
@@ -18,16 +22,34 @@ export const useAuthStore = create((set) => ({
 
       // Fetch current authenticated user and Gram Panchayat profile
       const response = await apiClient.get('/auth/me');
+      reset401Lock();
       set({ user: response.data.user, gp: response.data.gp, loading: false });
     } catch (err) {
       // If unauthorized (401), the stored token is invalid or expired
       if (err.response && err.response.status === 401) {
         await SecureStore.deleteItemAsync('token').catch(() => {});
-        set({ user: null, gp: null, loading: false });
+        set({
+          user: null,
+          gp: null,
+          loading: false,
+          sessionExpiredNotice: 'Session expired or account deactivated. Please log in again.',
+        });
       } else {
         // For network errors or timeouts, do NOT delete the stored token
         set({ loading: false });
       }
+    }
+  },
+
+  // Refresh current user and Gram Panchayat profile
+  fetchProfile: async () => {
+    try {
+      const response = await apiClient.get('/auth/me');
+      set({ user: response.data.user, gp: response.data.gp });
+      return response.data;
+    } catch (err) {
+      // Handled by 401 interceptor if unauthorized
+      throw err;
     }
   },
 
@@ -38,7 +60,15 @@ export const useAuthStore = create((set) => ({
     if (token) {
       await SecureStore.setItemAsync('token', token);
     }
-    set({ user, loading: false });
+    reset401Lock();
+    set({ user, sessionExpiredNotice: '', loading: false });
+
+    // Also fetch fresh GP metadata if available
+    try {
+      const meRes = await apiClient.get('/auth/me');
+      set({ user: meRes.data.user || user, gp: meRes.data.gp });
+    } catch (_) {}
+
     return response.data;
   },
 
@@ -49,17 +79,31 @@ export const useAuthStore = create((set) => ({
     if (token) {
       await SecureStore.setItemAsync('token', token);
     }
-    set({ user, loading: false });
+    reset401Lock();
+    set({ user, sessionExpiredNotice: '', loading: false });
     return response.data;
   },
 
-  // Log out user and remove JWT token
-  logout: async () => {
+  // Log out user and remove JWT token (supports { expired: boolean })
+  logout: async (options = {}) => {
+    const { expired = false } = options || {};
     try {
       await SecureStore.deleteItemAsync('token');
     } catch (err) {
       // Ignore SecureStore delete errors
     }
-    set({ user: null, gp: null, loading: false });
+    set({
+      user: null,
+      gp: null,
+      loading: false,
+      sessionExpiredNotice: expired
+        ? 'Session expired or account deactivated. Please log in again.'
+        : '',
+    });
   },
 }));
+
+// Register the centralized 401 unauthorized session expiry handler
+registerUnauthorizedHandler(() => {
+  useAuthStore.getState().logout({ expired: true });
+});

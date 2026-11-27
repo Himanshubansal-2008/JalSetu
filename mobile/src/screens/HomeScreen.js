@@ -176,7 +176,7 @@ export default function HomeScreen({ navigation }) {
             ) : null}
           </View>
 
-          {/* Right Header Controls (Workers, Refresh & Logout) */}
+          {/* Right Header Controls (Workers, Refresh, Profile & Logout) */}
           <View style={styles.headerActions}>
             {isAdmin && (
               <TouchableOpacity
@@ -189,6 +189,16 @@ export default function HomeScreen({ navigation }) {
                 <Ionicons name="people-outline" size={20} color={colors.primary} />
               </TouchableOpacity>
             )}
+
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Profile')}
+              style={styles.iconButton}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Profile and settings"
+            >
+              <Ionicons name="person-circle-outline" size={22} color={colors.primary} />
+            </TouchableOpacity>
 
             <TouchableOpacity
               onPress={handleRefresh}
@@ -216,8 +226,14 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
 
-        {/* User Greeting & Role Badge Row */}
-        <View style={styles.greetingRow}>
+        {/* User Greeting & Role Badge Row (Tappable to Profile) */}
+        <TouchableOpacity
+          style={styles.greetingRow}
+          activeOpacity={0.75}
+          onPress={() => navigation.navigate('Profile')}
+          accessibilityRole="button"
+          accessibilityLabel="Open profile and settings"
+        >
           <View style={styles.userAvatar}>
             <Text style={styles.userAvatarText}>
               {(user?.name || 'U').charAt(0).toUpperCase()}
@@ -250,7 +266,8 @@ export default function HomeScreen({ navigation }) {
               {isAdmin ? 'Admin' : 'Field Worker'}
             </Text>
           </View>
-        </View>
+          <Ionicons name="chevron-forward" size={16} color={colors.muted} style={{ marginLeft: 6 }} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView

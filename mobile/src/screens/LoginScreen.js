@@ -1,11 +1,20 @@
 import React, { useState } from 'react';
-import { Text, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import { useAuthStore } from '../store/authStore';
 import { getErrorMessage } from '../api/apiClient';
 import { strings } from '../strings';
-import { colors } from '../theme';
+import { colors, tones, radius, spacing } from '../theme';
 
 export default function LoginScreen({ navigation }) {
   const [phone, setPhone] = useState('');
@@ -16,6 +25,8 @@ export default function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
 
   const login = useAuthStore((state) => state.login);
+  const sessionExpiredNotice = useAuthStore((state) => state.sessionExpiredNotice);
+  const clearSessionExpiredNotice = useAuthStore((state) => state.clearSessionExpiredNotice);
 
   const handleLogin = async () => {
     let isValid = true;
@@ -56,6 +67,26 @@ export default function LoginScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>{strings.appName}</Text>
         <Text style={styles.subtitle}>{strings.login}</Text>
+
+        {sessionExpiredNotice ? (
+          <View style={styles.sessionExpiredBanner}>
+            <Ionicons
+              name="alert-circle-outline"
+              size={20}
+              color={tones.warning.fg}
+              style={{ marginRight: 8 }}
+            />
+            <Text style={styles.sessionExpiredText}>{sessionExpiredNotice}</Text>
+            <TouchableOpacity
+              onPress={clearSessionExpiredNotice}
+              style={styles.sessionExpiredClose}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss session alert"
+            >
+              <Ionicons name="close" size={16} color={tones.warning.fg} />
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         {apiError ? <Text style={styles.apiError}>{apiError}</Text> : null}
 
@@ -124,6 +155,27 @@ const styles = StyleSheet.create({
     color: colors.text,
     textAlign: 'center',
     marginBottom: 24,
+  },
+  sessionExpiredBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: tones.warning.bg,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: '#FDE0B2',
+  },
+  sessionExpiredText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: tones.warning.fg,
+    lineHeight: 18,
+  },
+  sessionExpiredClose: {
+    padding: spacing.xs,
+    marginLeft: spacing.xs,
   },
   apiError: {
     color: colors.danger,

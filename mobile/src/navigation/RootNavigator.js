@@ -8,6 +8,7 @@ import SignupScreen from '../screens/SignupScreen';
 import AdminTabs from './AdminTabs';
 import WorkerTabs from './WorkerTabs';
 import ManageWorkersScreen from '../screens/ManageWorkersScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import { colors } from '../theme';
 
 const Stack = createNativeStackNavigator();
@@ -43,9 +44,13 @@ export default function RootNavigator() {
           <>
             <Stack.Screen name="AdminRoot" component={AdminTabs} />
             <Stack.Screen name="ManageWorkers" component={ManageWorkersScreen} />
+            <Stack.Screen name="Profile" component={ProfileScreen} />
           </>
         ) : (
-          <Stack.Screen name="WorkerRoot" component={WorkerTabs} />
+          <>
+            <Stack.Screen name="WorkerRoot" component={WorkerTabs} />
+            <Stack.Screen name="Profile" component={ProfileScreen} />
+          </>
         )}
       </Stack.Navigator>
     </NavigationContainer>
