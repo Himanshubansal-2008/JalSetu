@@ -176,8 +176,20 @@ export default function HomeScreen({ navigation }) {
             ) : null}
           </View>
 
-          {/* Right Header Controls (Refresh & Logout) */}
+          {/* Right Header Controls (Workers, Refresh & Logout) */}
           <View style={styles.headerActions}>
+            {isAdmin && (
+              <TouchableOpacity
+                onPress={() => navigation.navigate('ManageWorkers')}
+                style={styles.iconButton}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Manage field workers"
+              >
+                <Ionicons name="people-outline" size={20} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               onPress={handleRefresh}
               style={styles.iconButton}
@@ -822,6 +834,31 @@ export default function HomeScreen({ navigation }) {
                     <Text style={styles.actionTitle}>Generate Bills</Text>
                     <Text style={styles.actionSubtitle}>
                       Run monthly water tariff generation for active consumers
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+                </TouchableOpacity>
+
+                {/* Action 4: Manage Workers */}
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  activeOpacity={0.8}
+                  onPress={() => navigation.navigate('ManageWorkers')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Manage field workers"
+                >
+                  <View
+                    style={[
+                      styles.actionIconBox,
+                      { backgroundColor: tones.neutral.bg },
+                    ]}
+                  >
+                    <Ionicons name="people" size={24} color={tones.neutral.fg} />
+                  </View>
+                  <View style={styles.actionTextBox}>
+                    <Text style={styles.actionTitle}>Manage Workers</Text>
+                    <Text style={styles.actionSubtitle}>
+                      Add, activate, or deactivate field worker logins
                     </Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color={colors.muted} />

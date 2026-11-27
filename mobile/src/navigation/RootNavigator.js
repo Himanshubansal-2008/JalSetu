@@ -7,6 +7,7 @@ import LoginScreen from '../screens/LoginScreen';
 import SignupScreen from '../screens/SignupScreen';
 import AdminTabs from './AdminTabs';
 import WorkerTabs from './WorkerTabs';
+import ManageWorkersScreen from '../screens/ManageWorkersScreen';
 import { colors } from '../theme';
 
 const Stack = createNativeStackNavigator();
@@ -39,7 +40,10 @@ export default function RootNavigator() {
             <Stack.Screen name="Signup" component={SignupScreen} />
           </>
         ) : (user.role === 'ADMIN' || user.role === 'admin' || user.role?.toUpperCase() === 'ADMIN') ? (
-          <Stack.Screen name="AdminRoot" component={AdminTabs} />
+          <>
+            <Stack.Screen name="AdminRoot" component={AdminTabs} />
+            <Stack.Screen name="ManageWorkers" component={ManageWorkersScreen} />
+          </>
         ) : (
           <Stack.Screen name="WorkerRoot" component={WorkerTabs} />
         )}
