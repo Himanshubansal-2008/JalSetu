@@ -36,12 +36,22 @@ import { colors, spacing } from '../theme';
 
 const PAGE_LIMIT = 50;
 
-export default function AssetListScreen({ navigation }) {
+export default function AssetListScreen({ navigation, route }) {
+  const initialStatusParam = route?.params?.initialStatus || route?.params?.status || null;
+
   // Filter and search state
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedType, setSelectedType] = useState(null);
-  const [selectedStatus, setSelectedStatus] = useState(null);
+  const [selectedStatus, setSelectedStatus] = useState(initialStatusParam);
+
+  // Sync if route params change
+  useEffect(() => {
+    const s = route?.params?.initialStatus || route?.params?.status;
+    if (s) {
+      setSelectedStatus(s);
+    }
+  }, [route?.params?.initialStatus, route?.params?.status]);
 
   // Assets data & pagination state
   const [assets, setAssets] = useState(null);

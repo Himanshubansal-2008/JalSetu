@@ -1,7 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import PlaceholderScreen from '../screens/PlaceholderScreen';
+import HomeScreen from '../screens/HomeScreen';
 import AssetsStack from './AssetsStack';
 import AssetMapScreen from '../screens/AssetMapScreen';
 import InventoryStack from './InventoryStack';
@@ -45,7 +45,11 @@ export default function AdminTabs() {
         },
       })}
     >
-      <Tab.Screen name={strings.dashboard} component={PlaceholderScreen} />
+      <Tab.Screen
+        name={strings.dashboard}
+        component={HomeScreen}
+        options={{ headerShown: false }}
+      />
       <Tab.Screen
         name={strings.assets}
         component={AssetsStack}

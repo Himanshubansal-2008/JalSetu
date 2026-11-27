@@ -23,7 +23,7 @@ import EmptyState from '../components/EmptyState';
 import { strings } from '../strings';
 import { colors, tones, spacing, radius } from '../theme';
 
-export default function InventoryListScreen({ navigation }) {
+export default function InventoryListScreen({ navigation, route }) {
   const user = useAuthStore((state) => state.user);
   const isAdmin =
     user?.role === 'ADMIN' ||
@@ -33,7 +33,14 @@ export default function InventoryListScreen({ navigation }) {
   // Search & filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [lowStockOnly, setLowStockOnly] = useState(false);
+  const [lowStockOnly, setLowStockOnly] = useState(Boolean(route?.params?.lowStockOnly));
+
+  // Sync if route params change
+  useEffect(() => {
+    if (route?.params?.lowStockOnly !== undefined) {
+      setLowStockOnly(Boolean(route.params.lowStockOnly));
+    }
+  }, [route?.params?.lowStockOnly]);
 
   // Inventory data state
   const [items, setItems] = useState(null);

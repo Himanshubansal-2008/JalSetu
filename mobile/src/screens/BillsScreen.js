@@ -84,7 +84,7 @@ function formatPaidDateShort(dateVal) {
   });
 }
 
-export default function BillsScreen({ navigation }) {
+export default function BillsScreen({ navigation, route }) {
   const user = useAuthStore((state) => state.user);
   const isAdmin =
     user?.role === 'ADMIN' ||
@@ -93,8 +93,16 @@ export default function BillsScreen({ navigation }) {
 
   // Period, search, and filter states
   const [selectedMonth, setSelectedMonth] = useState(currentMonthString);
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState(route?.params?.initialStatus || route?.params?.status || 'ALL');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Sync if route params change
+  useEffect(() => {
+    const s = route?.params?.initialStatus || route?.params?.status;
+    if (s) {
+      setStatusFilter(s);
+    }
+  }, [route?.params?.initialStatus, route?.params?.status]);
 
   // Data states
   const [bills, setBills] = useState([]);

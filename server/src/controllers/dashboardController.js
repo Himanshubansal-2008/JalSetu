@@ -55,11 +55,24 @@ async function getDashboard(req, res, next) {
       },
     });
 
+    // Gram Panchayat metadata query
+    const gpPromise = prisma.gramPanchayat.findUnique({
+      where: { id: gpId },
+      select: {
+        id: true,
+        name: true,
+        village: true,
+        district: true,
+        state: true,
+      },
+    });
+
     if (!isAdmin) {
       // Worker execution path: only operational queries, zero financial leakage
-      const [assetGroups, inventoryItems] = await Promise.all([
+      const [assetGroups, inventoryItems, gpRecord] = await Promise.all([
         assetGroupsPromise,
         inventoryItemsPromise,
+        gpPromise,
       ]);
 
       let totalAssets = 0;
@@ -83,6 +96,7 @@ async function getDashboard(req, res, next) {
       return res.status(200).json({
         role: 'worker',
         month,
+        gp: gpRecord || null,
         assets: {
           total: totalAssets,
           faulty: faultyAssets,
@@ -120,11 +134,12 @@ async function getDashboard(req, res, next) {
       },
     });
 
-    const [assetGroups, inventoryItems, ledgerGroups, pendingDuesAgg] = await Promise.all([
+    const [assetGroups, inventoryItems, ledgerGroups, pendingDuesAgg, gpRecord] = await Promise.all([
       assetGroupsPromise,
       inventoryItemsPromise,
       ledgerGroupsPromise,
       pendingDuesPromise,
+      gpPromise,
     ]);
 
     // Process Asset counts
@@ -169,6 +184,7 @@ async function getDashboard(req, res, next) {
     return res.status(200).json({
       role: 'admin',
       month,
+      gp: gpRecord || null,
       assets: {
         total: totalAssets,
         faulty: faultyAssets,
