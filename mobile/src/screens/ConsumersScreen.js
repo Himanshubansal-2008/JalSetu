@@ -282,6 +282,15 @@ export default function ConsumersScreen({ navigation }) {
             style={{ marginRight: spacing.xs }}
           />
           <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => fetchConsumers()}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Retry fetching consumers"
+          >
+            <Text style={styles.retryButtonText}>{strings.retry || 'Retry'}</Text>
+          </TouchableOpacity>
         </View>
       ) : null}
 
@@ -554,5 +563,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: tones.success.fg,
+  },
+  retryButton: {
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.sm + 4,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: tones.danger.fg,
+    marginLeft: spacing.sm,
+  },
+  retryButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: tones.danger.fg,
   },
 });

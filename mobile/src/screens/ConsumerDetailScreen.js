@@ -219,14 +219,23 @@ export default function ConsumerDetailScreen({ route, navigation }) {
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : error && !consumer ? (
-        <View style={styles.errorBanner}>
+        <View style={styles.errorContainer}>
           <Ionicons
             name="alert-circle-outline"
-            size={18}
+            size={40}
             color={colors.danger}
-            style={{ marginRight: spacing.xs }}
+            style={{ marginBottom: spacing.sm }}
           />
           <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => fetchConsumer()}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Retry fetching consumer details"
+          >
+            <Text style={styles.retryButtonText}>{strings.retry || 'Retry'}</Text>
+          </TouchableOpacity>
         </View>
       ) : consumer ? (
         <>
@@ -240,6 +249,13 @@ export default function ConsumerDetailScreen({ route, navigation }) {
                 style={{ marginRight: spacing.xs }}
               />
               <Text style={styles.errorText}>{error}</Text>
+              <TouchableOpacity
+                style={styles.retryMiniButton}
+                onPress={() => fetchConsumer()}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.retryMiniButtonText}>{strings.retry || 'Retry'}</Text>
+              </TouchableOpacity>
             </View>
           ) : null}
 
@@ -937,5 +953,43 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: colors.white,
+  },
+  errorContainer: {
+    backgroundColor: tones.danger.bg,
+    borderRadius: radius.md,
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: spacing.lg,
+    borderWidth: 1,
+    borderColor: '#F8B4B4',
+  },
+  retryButton: {
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: tones.danger.fg,
+    marginTop: spacing.md,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: tones.danger.fg,
+  },
+  retryMiniButton: {
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.sm + 4,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: tones.danger.fg,
+    marginLeft: spacing.sm,
+  },
+  retryMiniButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: tones.danger.fg,
   },
 });

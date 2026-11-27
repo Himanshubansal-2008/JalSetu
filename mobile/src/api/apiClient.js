@@ -54,12 +54,48 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Helper to extract human-readable error messages
-export function getErrorMessage(error) {
-  if (error.response && error.response.data && error.response.data.error) {
-    return error.response.data.error;
+// Helper to extract clean, friendly human-readable error messages (never raw Axios or HTML dumps)
+export function getErrorMessage(error, fallbackMessage) {
+  if (!error) return fallbackMessage || strings.genericError;
+
+  // 1. Structured backend error
+  const serverError =
+    error.response?.data?.error ||
+    error.response?.data?.message ||
+    (typeof error.response?.data === 'string' && !error.response.data.includes('<html')
+      ? error.response.data
+      : null);
+
+  if (serverError && typeof serverError === 'string') {
+    return serverError;
   }
-  return strings.networkError;
+
+  // 2. Network timeouts or offline errors mapped to friendly server reachability message
+  const isNetwork =
+    error.message === 'Network Error' ||
+    error.code === 'ECONNABORTED' ||
+    error.code === 'ERR_NETWORK' ||
+    error.message?.includes('timeout') ||
+    error.message?.includes('Network request failed');
+
+  if (isNetwork) {
+    return 'Unable to reach JalKosh server. Check your internet connection and try again.';
+  }
+
+  // 3. HTTP 500+ Internal Server Error (filter out raw status string)
+  if (error.response?.status >= 500) {
+    return fallbackMessage || 'Server encountered an internal error. Please try again later.';
+  }
+
+  // 4. Clean error message (excluding raw Axios status codes)
+  if (error.message && typeof error.message === 'string') {
+    if (error.message.startsWith('Request failed with status code')) {
+      return fallbackMessage || strings.genericError;
+    }
+    return error.message;
+  }
+
+  return fallbackMessage || strings.genericError;
 }
 
 export default apiClient;

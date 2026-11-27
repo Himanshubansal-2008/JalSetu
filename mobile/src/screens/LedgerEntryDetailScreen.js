@@ -17,6 +17,7 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  RefreshControl,
   Alert,
   ActivityIndicator,
   StyleSheet,
@@ -44,6 +45,7 @@ export default function LedgerEntryDetailScreen({ route, navigation }) {
 
   const [entry, setEntry] = useState(initialEntry);
   const [loading, setLoading] = useState(!initialEntry);
+  const [refreshing, setRefreshing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
 
@@ -65,18 +67,24 @@ export default function LedgerEntryDetailScreen({ route, navigation }) {
     if (!entryId || !isAdmin) return;
 
     try {
+      setError('');
       const response = await apiClient.get('/finance/entries');
       const allEntries = response.data?.entries || [];
       const found = allEntries.find((e) => e.id === entryId);
       if (found) {
         setEntry(found);
+      } else if (!entry) {
+        setError('Ledger entry not found');
       }
     } catch (err) {
-      // If error on background refresh, keep existing entry state
+      if (!entry) {
+        setError(getErrorMessage(err, 'Failed to load ledger entry'));
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [entryId, isAdmin]);
+  }, [entryId, isAdmin, entry]);
 
   // Initial fetch if entry wasn't passed directly
   useEffect(() => {
@@ -158,6 +166,26 @@ export default function LedgerEntryDetailScreen({ route, navigation }) {
     );
   }
 
+  if (error && !entry) {
+    return (
+      <View style={styles.centerContainer}>
+        <Ionicons name="alert-circle-outline" size={48} color={colors.danger} />
+        <Text style={styles.errorTitle}>Could not load entry</Text>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() => {
+            setLoading(true);
+            refreshEntry();
+          }}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.retryButtonText}>{strings.retry || 'Retry'}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   if (!entry) {
     return (
       <View style={styles.centerContainer}>
@@ -176,6 +204,17 @@ export default function LedgerEntryDetailScreen({ route, navigation }) {
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={async () => {
+            setRefreshing(true);
+            await refreshEntry();
+          }}
+          colors={[colors.primary]}
+          tintColor={colors.primary}
+        />
+      }
     >
       {/* 1. Top Amount & Category Banner Card */}
       <View
@@ -543,5 +582,32 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: colors.danger,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  errorText: {
+    fontSize: 14,
+    color: colors.muted,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.xl,
+  },
+  retryButton: {
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: tones.danger.fg,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: tones.danger.fg,
   },
 });
