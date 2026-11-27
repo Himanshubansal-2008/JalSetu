@@ -32,6 +32,9 @@ app.use('/api/consumers', require('./routes/consumerRoute'));
 // Bill routes
 app.use('/api/bills', require('./routes/billRoute'));
 
+// Dashboard routes
+app.use('/api/dashboard', require('./routes/dashboardRoute'));
+
 // 404 handler for unmatched routes
 app.use((req, res, next) => {
   res.status(404).json({ error: 'Route not found' });
