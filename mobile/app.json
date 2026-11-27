@@ -6,6 +6,11 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B6BCB"
+    },
     "ios": {
       "supportsTablet": true
     },
@@ -16,7 +21,21 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDummyKeyForGoogleMapsAndroidApi12345"
+        }
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -25,7 +44,25 @@
       "expo-secure-store",
       "expo-font",
       "@react-native-community/datetimepicker",
-      "expo-sharing"
-    ]
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "JalSetu needs access to your photos to attach asset verification and receipt photos.",
+          "cameraPermission": "JalSetu needs access to your camera to take asset verification photos on site."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "JalSetu needs access to your location to tag water supply asset GPS coordinates on site."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "feb21887-a6ea-43aa-ad7d-5f86aa007e6f"
+      }
+    },
+    "owner": "himanshu_bansal"
   }
 }
