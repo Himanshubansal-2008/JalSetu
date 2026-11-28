@@ -72,6 +72,25 @@ export const useAuthStore = create((set, get) => ({
     return response.data;
   },
 
+  // One-tap demo login (Admin or Worker) with optional dataset reset
+  demoLogin: async ({ role, resetData = false }) => {
+    const response = await apiClient.post('/auth/demo-login', { role, resetData });
+    const { token, user, gp } = response.data;
+    if (token) {
+      await SecureStore.setItemAsync('token', token);
+    }
+    reset401Lock();
+    set({ user, gp: gp || user?.gp || null, sessionExpiredNotice: '', loading: false });
+
+    // Also fetch fresh GP metadata if available
+    try {
+      const meRes = await apiClient.get('/auth/me');
+      set({ user: meRes.data.user || user, gp: meRes.data.gp || gp });
+    } catch (_) {}
+
+    return response.data;
+  },
+
   // Sign up new admin and Gram Panchayat, and persist JWT token
   signup: async (form) => {
     const response = await apiClient.post('/auth/signup', form);

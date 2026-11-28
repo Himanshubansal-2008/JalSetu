@@ -54,6 +54,16 @@ app.use((err, req, res, next) => {
 
 // Listen on configured port or default to 4000
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`API running on ${PORT}`);
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`\n❌ Port ${PORT} is already in use by another process!`);
+    console.error(`To free port ${PORT}, run:\n  lsof -ti :${PORT} | xargs kill -9\n`);
+  } else {
+    console.error('Server error:', err);
+  }
+  process.exit(1);
 });

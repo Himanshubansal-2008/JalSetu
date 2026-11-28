@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const { z } = require('zod');
 const prisma = require('../prisma');
 const { authenticate, requireRole } = require('../middleware/authMiddleware');
+const { seedDemoGp, isDemoGpSeeded } = require('../utils/demoSeed');
 
 const router = express.Router();
 
@@ -107,6 +108,63 @@ router.post('/signup', async (req, res, next) => {
     return res.status(201).json({
       token,
       user: publicUser(newUser),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /demo-login (public)
+router.post('/demo-login', async (req, res, next) => {
+  try {
+    const { role, resetData } = req.body;
+
+    const normalizedRole = typeof role === 'string' ? role.toUpperCase() : '';
+    if (normalizedRole !== 'ADMIN' && normalizedRole !== 'WORKER') {
+      return res.status(400).json({ error: 'Role must be "admin" or "worker"' });
+    }
+
+    const forceReset = Boolean(resetData === true || resetData === 'true');
+
+    // Ensure demo GP is seeded with realistic dataset (or reset if requested)
+    const { gp, adminUser, workerUser } = await seedDemoGp(prisma, { forceReset });
+
+    // Select the target demo user
+    let user = normalizedRole === 'ADMIN' ? adminUser : workerUser;
+
+    // Safety fallback: fetch user directly if not in return payload
+    if (!user) {
+      user = await prisma.user.findFirst({
+        where: {
+          gpId: gp.id,
+          role: normalizedRole,
+          isActive: true,
+        },
+      });
+    }
+
+    if (!user) {
+      return res.status(500).json({ error: `Demo ${role} user not found` });
+    }
+
+    // Ensure active status
+    if (!user.isActive) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { isActive: true },
+      });
+    }
+
+    const token = sign(user);
+    const userPayload = publicUser(user);
+
+    return res.status(200).json({
+      token,
+      user: {
+        ...userPayload,
+        gp,
+      },
+      gp,
     });
   } catch (err) {
     next(err);
