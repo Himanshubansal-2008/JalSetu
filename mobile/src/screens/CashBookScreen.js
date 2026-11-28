@@ -197,7 +197,7 @@ export default function CashBookScreen({ route, navigation }) {
   const totalReceiptsPaise = cashbook?.totalReceiptsPaise ?? 0;
   const totalExpensesPaise = cashbook?.totalExpensesPaise ?? 0;
   const closingBalancePaise = cashbook?.closingBalancePaise ?? 0;
-  const entries = cashbook?.entries ?? [];
+  const entries = cashbook?.entries ?? cashbook?.items ?? [];
 
   const handleOpenEditOb = () => {
     const currentRupees = (openingBalancePaise / 100).toString();

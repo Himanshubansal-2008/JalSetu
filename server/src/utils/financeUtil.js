@@ -242,40 +242,13 @@ const updateLedgerEntrySchema = z
   })
   .strict();
 
+const { getIstMonthBounds } = require('./dateUtil');
+
 /**
- * Resolves a month string ("YYYY-MM") into UTC start and end Date boundaries.
- * Defaults to current month if omitted.
+ * Resolves a month string ("YYYY-MM") into Asia/Kolkata (+05:30) start and end Date boundaries.
+ * Defaults to current month in IST if omitted.
  */
-function resolveMonthRange(monthStr) {
-  let str = monthStr;
-  if (!str) {
-    const now = new Date();
-    const y = now.getUTCFullYear();
-    const m = String(now.getUTCMonth() + 1).padStart(2, '0');
-    str = `${y}-${m}`;
-  }
-
-  if (typeof str !== 'string' || !/^\d{4}-\d{2}$/.test(str)) {
-    return null;
-  }
-
-  const [yStr, mStr] = str.split('-');
-  const year = parseInt(yStr, 10);
-  const month = parseInt(mStr, 10);
-
-  if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
-    return null;
-  }
-
-  const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
-  const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
-
-  return {
-    month: str,
-    startDate,
-    endDate,
-  };
-}
+const resolveMonthRange = getIstMonthBounds;
 
 // Schema for Cash Book Query (GET /api/finance/cashbook)
 const cashBookQuerySchema = z
@@ -283,6 +256,8 @@ const cashBookQuerySchema = z
     startDate: z.string().trim().optional(),
     endDate: z.string().trim().optional(),
     month: z.string().trim().optional(),
+    page: z.union([z.string(), z.number()]).optional(),
+    limit: z.union([z.string(), z.number()]).optional(),
   })
   .refine(
     (data) => {
@@ -313,6 +288,7 @@ module.exports = {
   PAYMENT_MODES,
   normalizeDateToUtcMidnight,
   normalizeDateToEndOfDay,
+  getIstMonthBounds,
   resolveMonthRange,
   createReceiptSchema,
   createExpenseSchema,

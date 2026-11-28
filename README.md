@@ -178,6 +178,9 @@ eas build -p android --profile preview
 | Admin | _TBD_ | _TBD_ |
 | Worker | _TBD_ | _TBD_ |
 
+> [!NOTE]
+> **Phone Verification Notice (MVP)**: Phone numbers across Gram Panchayat registration, worker accounts, and consumers strictly enforce format validation (valid 10-digit Indian mobile numbers starting with 6–9) without SMS OTP verification in this MVP. Production deployments should incorporate carrier/SMS OTP verification (e.g., MSG91, Fast2SMS, Twilio, or Firebase Phone Auth) before activating unverified signups.
+
 ---
 
 ## 8. API Overview

@@ -1,14 +1,21 @@
 const jwt = require('jsonwebtoken');
 const { z } = require('zod');
+const { phoneSchema, strongPasswordSchema } = require('./validationUtil');
 
 /**
- * Signs a JWT token containing user id, role, and gpId.
+ * Signs a JWT token containing user id, role, gpId, and tokenVersion.
+ * Default expiry shortened to 12h.
  */
-function signToken(user) {
+function signToken(user, expiresIn = '12h') {
   return jwt.sign(
-    { id: user.id, role: user.role, gpId: user.gpId },
+    {
+      id: user.id,
+      role: user.role,
+      gpId: user.gpId,
+      tokenVersion: user.tokenVersion ?? 0,
+    },
     process.env.JWT_SECRET,
-    { expiresIn: '1d' }
+    { expiresIn }
   );
 }
 
@@ -34,19 +41,25 @@ function publicUser(user) {
 // Zod validation schema for Gram Panchayat registration (signup)
 // Explicitly only creates standard GP Admin - never accepts or allows SUPER_ADMIN
 const signupSchema = z.object({
-  gpName: z.string().min(2, 'Gram Panchayat name must be at least 2 characters'),
-  village: z.string().min(2, 'Village name must be at least 2 characters'),
-  district: z.string().min(2, 'District must be at least 2 characters'),
-  state: z.string().min(2, 'State must be at least 2 characters'),
-  name: z.string().min(2, 'Applicant name must be at least 2 characters'),
-  phone: z.string().regex(/^\d{10}$/, 'Phone must be exactly 10 digits'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  gpName: z.string().trim().min(2, 'Gram Panchayat name must be at least 2 characters'),
+  village: z.string().trim().min(2, 'Village name must be at least 2 characters'),
+  district: z.string().trim().min(2, 'District must be at least 2 characters'),
+  state: z.string().trim().min(2, 'State must be at least 2 characters'),
+  name: z.string().trim().min(2, 'Applicant name must be at least 2 characters'),
+  phone: phoneSchema,
+  password: strongPasswordSchema,
 });
 
 // Zod validation schema for user login
 const loginSchema = z.object({
-  phone: z.string().regex(/^\d{10}$/, 'Phone must be exactly 10 digits'),
+  phone: z.string().trim().min(1, 'Phone is required'),
   password: z.string().min(1, 'Password is required'),
+});
+
+// Zod validation schema for changing own password
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: strongPasswordSchema,
 });
 
 module.exports = {
@@ -54,4 +67,7 @@ module.exports = {
   publicUser,
   signupSchema,
   loginSchema,
+  changePasswordSchema,
+  phoneSchema,
+  strongPasswordSchema,
 };

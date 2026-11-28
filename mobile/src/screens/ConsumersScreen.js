@@ -72,7 +72,7 @@ export default function ConsumersScreen({ navigation }) {
         const response = await apiClient.get('/consumers', { params });
         if (currentReqId !== requestIdRef.current) return;
 
-        const data = response.data?.consumers || [];
+        const data = response.data?.consumers || response.data?.items || [];
         setConsumers(data);
         hasDataRef.current = true;
       } catch (err) {

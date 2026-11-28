@@ -155,7 +155,7 @@ export default function BillsScreen({ navigation, route }) {
 
         if (currentReqId !== requestIdRef.current) return;
 
-        setBills(billsRes.data?.bills || []);
+        setBills(billsRes.data?.bills || billsRes.data?.items || []);
         setSummary(summaryRes.data || null);
         hasDataRef.current = true;
       } catch (err) {

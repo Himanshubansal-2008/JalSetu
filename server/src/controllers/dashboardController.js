@@ -8,7 +8,7 @@
  */
 
 const prisma = require('../prisma');
-const { resolveMonthRange } = require('../utils/financeUtil');
+const { getIstMonthBounds } = require('../utils/dateUtil');
 
 /**
  * GET /api/dashboard
@@ -24,15 +24,15 @@ async function getDashboard(req, res, next) {
     const role = (req.user?.role || '').toLowerCase();
     const isAdmin = role === 'admin';
 
-    // Validate or resolve month boundaries
+    // Validate or resolve month boundaries using Asia/Kolkata (IST)
     let monthRange;
     if (req.query.month) {
-      monthRange = resolveMonthRange(req.query.month);
+      monthRange = getIstMonthBounds(req.query.month);
       if (!monthRange) {
         return res.status(400).json({ error: 'Invalid month format (must be YYYY-MM)' });
       }
     } else {
-      monthRange = resolveMonthRange();
+      monthRange = getIstMonthBounds();
     }
 
     const { month, startDate, endDate } = monthRange;

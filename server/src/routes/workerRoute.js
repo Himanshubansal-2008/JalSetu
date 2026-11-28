@@ -4,6 +4,7 @@ const {
   listWorkers,
   createWorker,
   updateWorkerStatus,
+  resetWorkerPassword,
 } = require('../controllers/workerController');
 
 const router = express.Router();
@@ -17,6 +18,9 @@ router.get('/', listWorkers);
 
 // POST /api/workers - Create new worker for current GP
 router.post('/', createWorker);
+
+// POST /api/workers/:id/reset-password - Reset worker password and revoke sessions
+router.post('/:id/reset-password', resetWorkerPassword);
 
 // PATCH /api/workers/:id/status - Update worker active status
 router.patch('/:id/status', updateWorkerStatus);

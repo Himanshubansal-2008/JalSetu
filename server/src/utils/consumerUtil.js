@@ -1,4 +1,5 @@
 const { z } = require('zod');
+const { phoneSchema } = require('./validationUtil');
 
 // Schema for UUID route parameter
 const idParamSchema = z.string().uuid({ message: 'Invalid consumer id' });
@@ -20,13 +21,7 @@ const createConsumerSchema = z
       })
       .trim()
       .min(1, 'houseNumber cannot be empty'),
-    phone: z
-      .string({
-        required_error: 'phone is required',
-        invalid_type_error: 'phone must be a string',
-      })
-      .trim()
-      .min(1, 'phone cannot be empty'),
+    phone: phoneSchema,
     monthlyChargePaise: z
       .number({
         required_error: 'monthlyChargePaise is required',
@@ -52,11 +47,7 @@ const updateConsumerSchema = z
       .trim()
       .min(1, 'houseNumber cannot be empty')
       .optional(),
-    phone: z
-      .string({ invalid_type_error: 'phone must be a string' })
-      .trim()
-      .min(1, 'phone cannot be empty')
-      .optional(),
+    phone: phoneSchema.optional(),
     monthlyChargePaise: z
       .number({
         invalid_type_error: 'monthlyChargePaise must be an integer',

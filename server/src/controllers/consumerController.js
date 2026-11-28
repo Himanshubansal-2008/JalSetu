@@ -4,6 +4,7 @@ const {
   createConsumerSchema,
   updateConsumerSchema,
 } = require('../utils/consumerUtil');
+const { parsePagination } = require('../utils/paginationUtil');
 
 /**
  * List Consumers (GET /api/consumers) - Admin only
@@ -27,7 +28,11 @@ async function listConsumers(req, res, next) {
       ];
     }
 
-    const rawConsumers = await prisma.consumer.findMany({
+    const { isPaginated, page, limit, skip } = parsePagination(req.query);
+    const total = await prisma.consumer.count({ where });
+    const totalPages = isPaginated ? (Math.ceil(total / limit) || 1) : 1;
+
+    const findOptions = {
       where,
       include: {
         bills: {
@@ -40,7 +45,14 @@ async function listConsumers(req, res, next) {
         { houseNumber: 'asc' },
         { name: 'asc' },
       ],
-    });
+    };
+
+    if (isPaginated) {
+      findOptions.skip = skip;
+      findOptions.take = limit;
+    }
+
+    const rawConsumers = await prisma.consumer.findMany(findOptions);
 
     const consumers = rawConsumers.map((c) => {
       const pendingBills = c.bills || [];
@@ -59,8 +71,11 @@ async function listConsumers(req, res, next) {
     });
 
     return res.status(200).json({
+      items: consumers,
       consumers,
-      total: consumers.length,
+      total,
+      page: isPaginated ? page : 1,
+      totalPages,
     });
   } catch (err) {
     next(err);
@@ -140,8 +155,8 @@ async function createConsumer(req, res, next) {
     const consumer = await prisma.consumer.create({
       data: {
         gpId: req.user.gpId,
-        name,
-        houseNumber,
+        name: name.trim(),
+        houseNumber: houseNumber.trim(),
         phone,
         monthlyChargePaise,
         isActive: true,
@@ -156,6 +171,11 @@ async function createConsumer(req, res, next) {
       },
     });
   } catch (err) {
+    if (err.code === 'P2002') {
+      return res.status(409).json({
+        error: 'A consumer with this house number already exists in this Gram Panchayat',
+      });
+    }
     next(err);
   }
 }
@@ -194,8 +214,8 @@ async function updateConsumer(req, res, next) {
     const { name, houseNumber, phone, monthlyChargePaise, isActive } =
       bodyParsed.data;
 
-    if (name !== undefined) updateData.name = name;
-    if (houseNumber !== undefined) updateData.houseNumber = houseNumber;
+    if (name !== undefined) updateData.name = name.trim();
+    if (houseNumber !== undefined) updateData.houseNumber = houseNumber.trim();
     if (phone !== undefined) updateData.phone = phone;
     if (monthlyChargePaise !== undefined)
       updateData.monthlyChargePaise = monthlyChargePaise;
@@ -224,6 +244,11 @@ async function updateConsumer(req, res, next) {
       },
     });
   } catch (err) {
+    if (err.code === 'P2002') {
+      return res.status(409).json({
+        error: 'A consumer with this house number already exists in this Gram Panchayat',
+      });
+    }
     next(err);
   }
 }
@@ -244,21 +269,63 @@ async function deactivateConsumer(req, res, next) {
         id: req.params.id,
         gpId: req.user.gpId,
       },
+      include: {
+        bills: {
+          where: { status: 'PENDING' },
+          select: { id: true, amountPaise: true, month: true },
+        },
+      },
     });
 
     if (!existing) {
       return res.status(404).json({ error: 'Consumer not found' });
     }
 
-    const updated = await prisma.consumer.update({
+    const { cancelPendingBills, waivePendingBills, reason } = req.body || {};
+    const pendingBillsCount = existing.bills?.length || 0;
+    const pendingDuesPaise =
+      existing.bills?.reduce((acc, b) => acc + (b.amountPaise || 0), 0) || 0;
+
+    let cancelledBillsCount = 0;
+    const actionReason = reason || 'Consumer deactivated';
+
+    await prisma.$transaction(async (tx) => {
+      await tx.consumer.update({
+        where: { id: existing.id },
+        data: { isActive: false },
+      });
+
+      if (cancelPendingBills || waivePendingBills) {
+        const targetStatus = waivePendingBills ? 'WAIVED' : 'CANCELLED';
+        const result = await tx.bill.updateMany({
+          where: {
+            consumerId: existing.id,
+            gpId: req.user.gpId,
+            status: 'PENDING',
+          },
+          data: {
+            status: targetStatus,
+            cancelReason: actionReason,
+          },
+        });
+        cancelledBillsCount = result.count;
+      }
+    });
+
+    const updated = await prisma.consumer.findUnique({
       where: { id: existing.id },
-      data: { isActive: false },
     });
 
     return res.status(200).json({
       consumer: updated,
       deactivated: true,
-      message: 'Consumer deactivated to preserve billing history',
+      pendingBillsCount,
+      pendingDuesPaise,
+      cancelledBillsCount,
+      message:
+        cancelledBillsCount > 0
+          ? `Consumer deactivated and ${cancelledBillsCount} pending bill(s) resolved.`
+          : 'Consumer deactivated to preserve billing history.',
     });
   } catch (err) {
     next(err);

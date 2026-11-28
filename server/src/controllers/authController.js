@@ -1,7 +1,14 @@
+const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const prisma = require('../prisma');
 const { seedDemoGp } = require('../utils/demoSeed');
-const { signToken, publicUser, signupSchema, loginSchema } = require('../utils/authUtil');
+const {
+  signToken,
+  publicUser,
+  signupSchema,
+  loginSchema,
+  changePasswordSchema,
+} = require('../utils/authUtil');
 
 /**
  * Register a new Gram Panchayat and initial Admin user.
@@ -236,9 +243,137 @@ async function getMe(req, res, next) {
   }
 }
 
+/**
+ * Change current authenticated user's password.
+ * POST /api/auth/change-password
+ * Increments tokenVersion so all other active sessions/tokens are revoked immediately.
+ */
+async function changePassword(req, res, next) {
+  try {
+    const parsed = changePasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0].message });
+    }
+
+    const { currentPassword, newPassword } = parsed.data;
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: { gp: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ error: 'Current password is incorrect' });
+    }
+
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        error: 'New password cannot be the same as current password',
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        tokenVersion: { increment: 1 },
+      },
+      include: { gp: true },
+    });
+
+    // Fresh token for the current session with incremented tokenVersion
+    const token = signToken(updatedUser);
+
+    return res.status(200).json({
+      message: 'Password changed successfully',
+      token,
+      user: publicUser(updatedUser),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Refresh access token using active session or refresh token.
+ * POST /api/auth/refresh
+ */
+async function refreshToken(req, res, next) {
+  try {
+    let tokenToVerify = req.body?.refreshToken;
+    if (!tokenToVerify && req.headers.authorization?.startsWith('Bearer ')) {
+      tokenToVerify = req.headers.authorization.split(' ')[1];
+    }
+
+    if (!tokenToVerify) {
+      return res.status(400).json({ error: 'Token is required' });
+    }
+
+    let payload;
+    try {
+      payload = jwt.verify(tokenToVerify, process.env.JWT_SECRET);
+    } catch (err) {
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+
+    if (!payload?.id) {
+      return res.status(401).json({ error: 'Invalid token payload' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: payload.id },
+      include: { gp: true },
+    });
+
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    const isActive = Boolean(user.isActive !== undefined ? user.isActive : user.active);
+    if (!isActive) {
+      return res.status(403).json({ error: 'Account is deactivated' });
+    }
+
+    if (!user.gp || user.gp.isApproved !== true) {
+      return res.status(403).json({
+        error: 'Gram Panchayat registration is pending approval',
+      });
+    }
+
+    // Verify token version hasn't been revoked
+    if (
+      payload.tokenVersion !== undefined &&
+      user.tokenVersion !== undefined &&
+      payload.tokenVersion !== user.tokenVersion
+    ) {
+      return res.status(401).json({
+        error: 'Token has been revoked. Please log in again.',
+      });
+    }
+
+    const token = signToken(user);
+
+    return res.status(200).json({
+      token,
+      user: publicUser(user),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   registerGp,
   demoLogin,
   login,
   getMe,
+  changePassword,
+  refreshToken,
 };

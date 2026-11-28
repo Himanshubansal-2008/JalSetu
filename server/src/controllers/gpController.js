@@ -3,68 +3,121 @@ const prisma = require('../prisma');
 /**
  * List all Gram Panchayats with summary operational activity and statistics.
  * GET /api/gps/overview (Main Admin only)
+ * Optimized to use Prisma _count, groupBy, and aggregate summaries instead of loading full nested arrays into memory.
  */
 async function getOverview(req, res, next) {
   try {
-    const allGps = await prisma.gramPanchayat.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
-        users: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
-            role: true,
-            isActive: true,
+    const [
+      allGps,
+      assetStatusGroups,
+      consumerActiveGroups,
+      paidBillsAggregates,
+      pendingBillsCounts,
+      inventoryItems,
+    ] = await Promise.all([
+      prisma.gramPanchayat.findMany({
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          name: true,
+          village: true,
+          block: true,
+          district: true,
+          state: true,
+          isApproved: true,
+          createdAt: true,
+          users: {
+            where: { role: 'ADMIN' },
+            take: 1,
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+            },
+          },
+          _count: {
+            select: {
+              users: { where: { role: 'WORKER' } },
+              assets: true,
+              consumers: true,
+              items: true,
+            },
           },
         },
-        assets: {
-          select: {
-            id: true,
-            status: true,
-          },
+      }),
+      prisma.asset.groupBy({
+        by: ['gpId', 'status'],
+        _count: { id: true },
+      }),
+      prisma.consumer.groupBy({
+        by: ['gpId'],
+        where: { isActive: true },
+        _count: { id: true },
+      }),
+      prisma.bill.groupBy({
+        by: ['gpId'],
+        where: { status: 'PAID' },
+        _sum: { amountPaise: true },
+      }),
+      prisma.bill.groupBy({
+        by: ['gpId'],
+        where: { status: { in: ['PENDING', 'DUE'] } },
+        _count: { id: true },
+      }),
+      prisma.inventoryItem.findMany({
+        select: {
+          gpId: true,
+          quantity: true,
+          reorderLevel: true,
         },
-        consumers: {
-          select: {
-            id: true,
-            isActive: true,
-          },
-        },
-        items: {
-          select: {
-            id: true,
-            quantity: true,
-            reorderLevel: true,
-          },
-        },
-        bills: {
-          select: {
-            id: true,
-            status: true,
-            amountPaise: true,
-          },
-        },
-      },
-    });
+      }),
+    ]);
+
+    const faultyMap = new Map();
+    const underRepairMap = new Map();
+    for (const group of assetStatusGroups) {
+      if (group.status === 'FAULTY') {
+        faultyMap.set(group.gpId, group._count.id);
+      } else if (group.status === 'UNDER_REPAIR') {
+        underRepairMap.set(group.gpId, group._count.id);
+      }
+    }
+
+    const activeConsumersMap = new Map();
+    for (const group of consumerActiveGroups) {
+      activeConsumersMap.set(group.gpId, group._count.id);
+    }
+
+    const paidBillsSumMap = new Map();
+    for (const group of paidBillsAggregates) {
+      paidBillsSumMap.set(group.gpId, group._sum?.amountPaise || 0);
+    }
+
+    const pendingBillsCountMap = new Map();
+    for (const group of pendingBillsCounts) {
+      pendingBillsCountMap.set(group.gpId, group._count.id);
+    }
+
+    const lowStockMap = new Map();
+    for (const item of inventoryItems) {
+      if (item.quantity <= item.reorderLevel) {
+        lowStockMap.set(item.gpId, (lowStockMap.get(item.gpId) || 0) + 1);
+      }
+    }
 
     const formatted = allGps.map((gp) => {
-      const primaryAdmin = gp.users.find((u) => u.role === 'ADMIN');
-      const workers = gp.users.filter((u) => u.role === 'WORKER');
-
-      const totalAssets = gp.assets.length;
-      const faultyAssets = gp.assets.filter((a) => a.status === 'FAULTY').length;
-      const underRepairAssets = gp.assets.filter((a) => a.status === 'UNDER_REPAIR').length;
-      const workingAssets = totalAssets - faultyAssets - underRepairAssets;
-
-      const totalItems = gp.items.length;
-      const lowStockItems = gp.items.filter((i) => i.quantity <= i.reorderLevel).length;
-
-      const totalConsumers = gp.consumers.length;
-      const activeConsumers = gp.consumers.filter((c) => c.isActive).length;
-
-      const paidBills = gp.bills.filter((b) => b.status === 'PAID');
-      const totalCollectedPaise = paidBills.reduce((acc, b) => acc + (b.amountPaise || 0), 0);
-      const pendingBillsCount = gp.bills.filter((b) => b.status === 'PENDING' || b.status === 'DUE').length;
+      const primaryAdmin = gp.users && gp.users.length > 0 ? gp.users[0] : null;
+      const workersCount = gp._count?.users || 0;
+      const totalAssets = gp._count?.assets || 0;
+      const faultyAssets = faultyMap.get(gp.id) || 0;
+      const underRepairAssets = underRepairMap.get(gp.id) || 0;
+      const workingAssets = Math.max(0, totalAssets - faultyAssets - underRepairAssets);
+      const totalConsumers = gp._count?.consumers || 0;
+      const activeConsumers = activeConsumersMap.get(gp.id) || 0;
+      const totalInventoryItems = gp._count?.items || 0;
+      const lowStockItems = lowStockMap.get(gp.id) || 0;
+      const totalCollectedPaise = paidBillsSumMap.get(gp.id) || 0;
+      const pendingBillsCount = pendingBillsCountMap.get(gp.id) || 0;
 
       return {
         id: gp.id,
@@ -83,14 +136,14 @@ async function getOverview(req, res, next) {
             }
           : null,
         stats: {
-          workersCount: workers.length,
+          workersCount,
           totalAssets,
           workingAssets,
           faultyAssets,
           underRepairAssets,
           totalConsumers,
           activeConsumers,
-          totalInventoryItems: totalItems,
+          totalInventoryItems,
           lowStockItems,
           totalCollectedPaise,
           pendingBillsCount,

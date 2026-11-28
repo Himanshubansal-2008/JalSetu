@@ -7,6 +7,7 @@ const {
   stockInSchema,
   stockOutSchema,
 } = require('../utils/inventoryUtil');
+const { parsePagination } = require('../utils/paginationUtil');
 
 // List inventory items with optional search and lowStockOnly filter
 async function listInventoryItems(req, res, next) {
@@ -58,9 +59,17 @@ async function listInventoryItems(req, res, next) {
       return a.name.localeCompare(b.name);
     });
 
+    const { isPaginated, page, limit, skip } = parsePagination(req.query);
+
+    const total = items.length;
+    const totalPages = isPaginated ? (Math.ceil(total / limit) || 1) : 1;
+    const paginatedItems = isPaginated ? items.slice(skip, skip + limit) : items;
+
     return res.status(200).json({
-      items,
-      total: items.length,
+      items: paginatedItems,
+      total,
+      page: isPaginated ? page : 1,
+      totalPages,
       lowStockCount,
     });
   } catch (err) {

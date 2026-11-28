@@ -8,6 +8,8 @@
 
 const bcrypt = require('bcryptjs');
 const prisma = require('../prisma');
+const { parsePagination } = require('../utils/paginationUtil');
+const { phoneSchema, strongPasswordSchema } = require('../utils/validationUtil');
 
 /**
  * List Workers: GET /api/workers
@@ -21,11 +23,17 @@ async function listWorkers(req, res, next) {
       return res.status(401).json({ error: 'Unauthorized: missing Gram Panchayat scoping' });
     }
 
-    const workers = await prisma.user.findMany({
-      where: {
-        gpId,
-        role: 'WORKER',
-      },
+    const where = {
+      gpId,
+      role: 'WORKER',
+    };
+
+    const { isPaginated, page, limit, skip } = parsePagination(req.query);
+    const total = await prisma.user.count({ where });
+    const totalPages = isPaginated ? (Math.ceil(total / limit) || 1) : 1;
+
+    const findOptions = {
+      where,
       select: {
         id: true,
         name: true,
@@ -38,11 +46,22 @@ async function listWorkers(req, res, next) {
         { isActive: 'desc' },
         { name: 'asc' },
       ],
-    });
+    };
+
+    if (isPaginated) {
+      findOptions.skip = skip;
+      findOptions.take = limit;
+    }
+
+    const workers = await prisma.user.findMany(findOptions);
 
     return res.status(200).json({
+      items: workers,
       workers,
       count: workers.length,
+      total,
+      page: isPaginated ? page : 1,
+      totalPages,
     });
   } catch (err) {
     console.error('Error listing workers:', err);
@@ -66,19 +85,21 @@ async function createWorker(req, res, next) {
 
     // Validate name
     const cleanName = typeof name === 'string' ? name.trim() : '';
-    if (!cleanName) {
-      return res.status(400).json({ error: 'Name is required' });
+    if (!cleanName || cleanName.length < 2) {
+      return res.status(400).json({ error: 'Name must be at least 2 characters' });
     }
 
-    // Validate phone
-    const cleanPhone = typeof phone === 'string' ? phone.trim() : '';
-    if (!cleanPhone) {
-      return res.status(400).json({ error: 'Phone is required' });
+    // Validate phone using shared Indian 10-digit mobile validator
+    const phoneParsed = phoneSchema.safeParse(phone);
+    if (!phoneParsed.success) {
+      return res.status(400).json({ error: phoneParsed.error.issues[0].message });
     }
+    const cleanPhone = phoneParsed.data;
 
-    // Validate password (at least 6 characters)
-    if (!rawPassword || typeof rawPassword !== 'string' || rawPassword.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    // Validate password (min 8 characters, at least 1 letter and 1 number)
+    const pwdParsed = strongPasswordSchema.safeParse(rawPassword);
+    if (!pwdParsed.success) {
+      return res.status(400).json({ error: pwdParsed.error.issues[0].message });
     }
 
     // Check duplicate phone
@@ -90,7 +111,7 @@ async function createWorker(req, res, next) {
     }
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(rawPassword, 10);
+    const hashedPassword = await bcrypt.hash(pwdParsed.data, 10);
 
     // Create worker
     const newWorker = await prisma.user.create({
@@ -162,10 +183,15 @@ async function updateWorkerStatus(req, res, next) {
       return res.status(404).json({ error: 'Worker not found' });
     }
 
-    // Update active status
+    // Update active status (increment tokenVersion on deactivation to revoke active sessions)
+    const updateData = { isActive };
+    if (!isActive) {
+      updateData.tokenVersion = { increment: 1 };
+    }
+
     const updatedWorker = await prisma.user.update({
       where: { id: worker.id },
-      data: { isActive },
+      data: updateData,
       select: {
         id: true,
         name: true,
@@ -184,8 +210,68 @@ async function updateWorkerStatus(req, res, next) {
   }
 }
 
+/**
+ * Reset Worker Password: POST /api/workers/:id/reset-password
+ * Admin-only, resets a worker's password in their own GP and increments tokenVersion to revoke all existing sessions.
+ */
+async function resetWorkerPassword(req, res, next) {
+  try {
+    const gpId = req.user?.gpId;
+    if (!gpId) {
+      return res.status(401).json({ error: 'Unauthorized: missing Gram Panchayat scoping' });
+    }
+
+    const { id } = req.params;
+    const rawPassword = req.body?.newPassword || req.body?.password;
+
+    const parsed = strongPasswordSchema.safeParse(rawPassword);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0].message });
+    }
+
+    const worker = await prisma.user.findFirst({
+      where: {
+        id,
+        gpId,
+        role: 'WORKER',
+      },
+    });
+
+    if (!worker) {
+      return res.status(404).json({ error: 'Worker not found' });
+    }
+
+    const hashedPassword = await bcrypt.hash(parsed.data, 10);
+
+    const updatedWorker = await prisma.user.update({
+      where: { id: worker.id },
+      data: {
+        password: hashedPassword,
+        tokenVersion: { increment: 1 },
+      },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        tokenVersion: true,
+      },
+    });
+
+    return res.status(200).json({
+      message: 'Worker password reset successfully. All existing sessions have been revoked.',
+      worker: updatedWorker,
+    });
+  } catch (err) {
+    console.error('Error resetting worker password:', err);
+    return res.status(500).json({ error: 'Failed to reset worker password' });
+  }
+}
+
 module.exports = {
   listWorkers,
   createWorker,
   updateWorkerStatus,
+  resetWorkerPassword,
 };

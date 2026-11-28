@@ -13,6 +13,7 @@ const {
   cashBookQuerySchema,
   monthlySummaryQuerySchema,
 } = require('../utils/financeUtil');
+const { parsePagination } = require('../utils/paginationUtil');
 
 // Add Receipt (POST /api/finance/receipts) - Admin only
 async function addReceipt(req, res, next) {
@@ -488,6 +489,11 @@ async function getCashBook(req, res, next) {
     const closingBalancePaise =
       openingBalancePaise + totalReceiptsPaise - totalExpensesPaise;
 
+    const { isPaginated, page, limit, skip } = parsePagination(req.query);
+    const total = entries.length;
+    const totalPages = isPaginated ? (Math.ceil(total / limit) || 1) : 1;
+    const paginatedEntries = isPaginated ? entries.slice(skip, skip + limit) : entries;
+
     return res.status(200).json({
       startDate: startDateObj.toISOString(),
       endDate: endDateObj.toISOString(),
@@ -495,7 +501,11 @@ async function getCashBook(req, res, next) {
       totalReceiptsPaise,
       totalExpensesPaise,
       closingBalancePaise,
-      entries,
+      items: paginatedEntries,
+      entries: paginatedEntries,
+      total,
+      page: isPaginated ? page : 1,
+      totalPages,
     });
   } catch (err) {
     next(err);

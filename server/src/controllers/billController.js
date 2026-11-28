@@ -5,8 +5,12 @@ const {
   payBillSchema,
   listBillsQuerySchema,
   duesSummaryQuerySchema,
+  editBillSchema,
+  cancelWaiveBillSchema,
   normalizeDateToUtcMidnight,
 } = require('../utils/billUtil');
+const { parsePagination } = require('../utils/paginationUtil');
+const { getIstMonthBounds } = require('../utils/dateUtil');
 
 /**
  * List Bills (GET /api/bills) - Admin only
@@ -49,7 +53,12 @@ async function listBills(req, res, next) {
       ];
     }
 
-    const bills = await prisma.bill.findMany({
+    const { isPaginated, page, limit, skip } = parsePagination(req.query);
+
+    const total = await prisma.bill.count({ where });
+    const totalPages = isPaginated ? (Math.ceil(total / limit) || 1) : 1;
+
+    const findOptions = {
       where,
       include: {
         consumer: {
@@ -76,11 +85,21 @@ async function listBills(req, res, next) {
         { consumer: { houseNumber: 'asc' } },
         { createdAt: 'desc' },
       ],
-    });
+    };
+
+    if (isPaginated) {
+      findOptions.skip = skip;
+      findOptions.take = limit;
+    }
+
+    const bills = await prisma.bill.findMany(findOptions);
 
     return res.status(200).json({
+      items: bills,
       bills,
-      total: bills.length,
+      total,
+      page: isPaginated ? page : 1,
+      totalPages,
     });
   } catch (err) {
     next(err);
@@ -102,11 +121,17 @@ async function getDuesSummary(req, res, next) {
       return res.status(400).json({ error: parsed.error.issues[0].message });
     }
 
-    const { month } = parsed.data;
+    const { month: rawMonth } = parsed.data;
     const gpId = req.user.gpId;
 
     const periodWhere = { gpId };
-    if (month) {
+    let month = null;
+    if (rawMonth) {
+      const monthRange = getIstMonthBounds(rawMonth);
+      if (!monthRange) {
+        return res.status(400).json({ error: 'Invalid month format (must be YYYY-MM)' });
+      }
+      month = monthRange.month;
       periodWhere.month = month;
     }
 
@@ -240,7 +265,17 @@ async function generateBills(req, res, next) {
       return res.status(400).json({ error: parsed.error.issues[0].message });
     }
 
-    const { month } = parsed.data;
+    const monthStr = parsed.data.month || null;
+    const monthRange = getIstMonthBounds(monthStr);
+    if (!monthRange) {
+      return res.status(400).json({ error: 'Invalid month format (must be YYYY-MM)' });
+    }
+    const month = monthRange.month;
+    const currentIstMonth = getIstMonthBounds().month;
+    if (month > currentIstMonth) {
+      return res.status(400).json({ error: 'Cannot generate bills for future months' });
+    }
+
     const gpId = req.user.gpId;
 
     // 1. Fetch all active consumers in the authenticated user's GP
@@ -255,53 +290,42 @@ async function generateBills(req, res, next) {
       },
     });
 
-    // 2. Fetch existing bills for this GP and month to optimize and avoid duplicate queries
-    const existingBills = await prisma.bill.findMany({
-      where: {
-        gpId,
+    if (activeConsumers.length === 0) {
+      return res.status(200).json({
         month,
-      },
-      select: {
-        consumerId: true,
-      },
-    });
-    const existingConsumerIds = new Set(existingBills.map((b) => b.consumerId));
-
-    let createdCount = 0;
-    let skippedCount = 0;
-
-    // 3. Generate snapshot bill per active consumer
-    for (const consumer of activeConsumers) {
-      if (existingConsumerIds.has(consumer.id)) {
-        skippedCount++;
-        continue;
-      }
-
-      try {
-        await prisma.bill.create({
-          data: {
-            gpId,
-            consumerId: consumer.id,
-            month,
-            amountPaise: consumer.monthlyChargePaise,
-            status: 'PENDING',
-          },
-        });
-        createdCount++;
-      } catch (err) {
-        // Unique constraint error on @@unique([consumerId, month]) is P2002
-        if (err.code === 'P2002') {
-          skippedCount++;
-        } else {
-          throw err;
-        }
-      }
+        createdCount: 0,
+        skippedCount: 0,
+        generatedCount: 0,
+        totalEligible: 0,
+        message: 'No active consumers found for bill generation',
+      });
     }
+
+    // 2. Prepare candidate bill rows for batch idempotent insertion
+    const candidateRows = activeConsumers.map((consumer) => ({
+      gpId,
+      consumerId: consumer.id,
+      month,
+      amountPaise: consumer.monthlyChargePaise,
+      status: 'PENDING',
+    }));
+
+    // 3. Batch insert using createMany with skipDuplicates: true
+    const result = await prisma.bill.createMany({
+      data: candidateRows,
+      skipDuplicates: true,
+    });
+
+    const createdCount = result.count;
+    const skippedCount = candidateRows.length - createdCount;
 
     return res.status(200).json({
       month,
       createdCount,
       skippedCount,
+      generatedCount: createdCount,
+      totalEligible: candidateRows.length,
+      message: `Generated ${createdCount} bills for ${month} (${skippedCount} skipped as already generated)`,
     });
   } catch (err) {
     next(err);
@@ -359,9 +383,13 @@ async function payBill(req, res, next) {
         throw err;
       }
 
-      // Reject Already-Paid Bills
-      if (bill.status === 'PAID' || bill.paidAt) {
-        const err = new Error('Bill is already paid');
+      // Only PENDING bills can be paid
+      if (bill.status !== 'PENDING') {
+        const err = new Error(
+          bill.status === 'PAID'
+            ? 'Bill is already paid'
+            : `Cannot pay a bill that has been ${bill.status.toLowerCase()}`
+        );
         err.statusCode = 400;
         throw err;
       }
@@ -497,6 +525,206 @@ async function unpayBill(req, res, next) {
   }
 }
 
+/**
+ * Edit Pending Bill (PATCH /api/bills/:id) - Admin only
+ * Allows modifying amountPaise and notes on PENDING bills only.
+ */
+async function editBill(req, res, next) {
+  try {
+    const idParsed = idParamSchema.safeParse(req.params.id);
+    if (!idParsed.success) {
+      return res.status(400).json({ error: idParsed.error.issues[0].message });
+    }
+
+    const parsed = editBillSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0].message });
+    }
+
+    const bill = await prisma.bill.findFirst({
+      where: {
+        id: req.params.id,
+        gpId: req.user.gpId,
+      },
+      include: {
+        consumer: true,
+      },
+    });
+
+    if (!bill) {
+      return res.status(404).json({ error: 'Bill not found' });
+    }
+
+    if (bill.status !== 'PENDING') {
+      return res.status(400).json({
+        error: `Cannot edit a bill with status ${bill.status}`,
+      });
+    }
+
+    const updateData = {};
+    if (parsed.data.amountPaise !== undefined) {
+      updateData.amountPaise = parsed.data.amountPaise;
+    }
+    if (parsed.data.notes !== undefined) {
+      updateData.notes = parsed.data.notes;
+    }
+
+    const updated = await prisma.bill.update({
+      where: { id: bill.id },
+      data: updateData,
+      include: {
+        consumer: {
+          select: {
+            id: true,
+            name: true,
+            houseNumber: true,
+            phone: true,
+          },
+        },
+        gp: {
+          select: {
+            id: true,
+            name: true,
+            village: true,
+            district: true,
+            state: true,
+            upiId: true,
+          },
+        },
+      },
+    });
+
+    return res.status(200).json({
+      message: 'Bill updated successfully',
+      bill: updated,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Cancel Pending Bill (POST /api/bills/:id/cancel) - Admin only
+ */
+async function cancelBill(req, res, next) {
+  try {
+    const idParsed = idParamSchema.safeParse(req.params.id);
+    if (!idParsed.success) {
+      return res.status(400).json({ error: idParsed.error.issues[0].message });
+    }
+
+    const parsed = cancelWaiveBillSchema.safeParse(req.body || {});
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0].message });
+    }
+
+    const bill = await prisma.bill.findFirst({
+      where: {
+        id: req.params.id,
+        gpId: req.user.gpId,
+      },
+    });
+
+    if (!bill) {
+      return res.status(404).json({ error: 'Bill not found' });
+    }
+
+    if (bill.status !== 'PENDING') {
+      return res.status(400).json({
+        error: `Cannot cancel a bill with status ${bill.status}`,
+      });
+    }
+
+    const reason = parsed.data?.reason || parsed.data?.notes || 'Cancelled by admin';
+
+    const updated = await prisma.bill.update({
+      where: { id: bill.id },
+      data: {
+        status: 'CANCELLED',
+        cancelReason: reason,
+      },
+      include: {
+        consumer: {
+          select: {
+            id: true,
+            name: true,
+            houseNumber: true,
+            phone: true,
+          },
+        },
+      },
+    });
+
+    return res.status(200).json({
+      message: 'Bill cancelled successfully',
+      bill: updated,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Waive Pending Bill (POST /api/bills/:id/waive) - Admin only
+ */
+async function waiveBill(req, res, next) {
+  try {
+    const idParsed = idParamSchema.safeParse(req.params.id);
+    if (!idParsed.success) {
+      return res.status(400).json({ error: idParsed.error.issues[0].message });
+    }
+
+    const parsed = cancelWaiveBillSchema.safeParse(req.body || {});
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.issues[0].message });
+    }
+
+    const bill = await prisma.bill.findFirst({
+      where: {
+        id: req.params.id,
+        gpId: req.user.gpId,
+      },
+    });
+
+    if (!bill) {
+      return res.status(404).json({ error: 'Bill not found' });
+    }
+
+    if (bill.status !== 'PENDING') {
+      return res.status(400).json({
+        error: `Cannot waive a bill with status ${bill.status}`,
+      });
+    }
+
+    const reason = parsed.data?.reason || parsed.data?.notes || 'Waived by admin';
+
+    const updated = await prisma.bill.update({
+      where: { id: bill.id },
+      data: {
+        status: 'WAIVED',
+        cancelReason: reason,
+      },
+      include: {
+        consumer: {
+          select: {
+            id: true,
+            name: true,
+            houseNumber: true,
+            phone: true,
+          },
+        },
+      },
+    });
+
+    return res.status(200).json({
+      message: 'Bill waived successfully',
+      bill: updated,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listBills,
   getDuesSummary,
@@ -504,4 +732,7 @@ module.exports = {
   generateBills,
   payBill,
   unpayBill,
+  editBill,
+  cancelBill,
+  waiveBill,
 };

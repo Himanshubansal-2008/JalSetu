@@ -80,6 +80,8 @@ const listInventoryQuerySchema = z.object({
       if (typeof val === 'string') return val.toLowerCase() === 'true';
       return false;
     }),
+  page: z.union([z.string(), z.number()]).optional(),
+  limit: z.union([z.string(), z.number()]).optional(),
 });
 
 // Schema for Stock IN transaction

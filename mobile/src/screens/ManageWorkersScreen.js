@@ -76,7 +76,7 @@ export default function ManageWorkersScreen({ navigation }) {
       try {
         const response = await apiClient.get('/workers');
         if (currentReqId === requestIdRef.current) {
-          const list = response.data?.workers || [];
+          const list = response.data?.workers || response.data?.items || [];
           setWorkers(list);
           hasDataRef.current = true;
           setLoading(false);

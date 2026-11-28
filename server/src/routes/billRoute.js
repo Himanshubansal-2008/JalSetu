@@ -7,6 +7,9 @@ const {
   generateBills,
   payBill,
   unpayBill,
+  editBill,
+  cancelBill,
+  waiveBill,
 } = require('../controllers/billController');
 
 const router = express.Router();
@@ -26,6 +29,13 @@ router.post('/generate', generateBills);
 
 // Single Bill Detail: GET /api/bills/:id
 router.get('/:id', getBill);
+
+// Edit Pending Bill: PATCH /api/bills/:id
+router.patch('/:id', editBill);
+
+// Cancel / Waive Pending Bill: POST /api/bills/:id/cancel & /api/bills/:id/waive
+router.post('/:id/cancel', cancelBill);
+router.post('/:id/waive', waiveBill);
 
 // Atomic Bill Payment: POST /api/bills/:id/pay
 router.post('/:id/pay', payBill);

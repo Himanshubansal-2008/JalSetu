@@ -30,6 +30,7 @@ const authenticate = async (req, res, next) => {
         name: true,
         phone: true,
         isActive: true,
+        tokenVersion: true,
         gp: {
           select: {
             id: true,
@@ -47,6 +48,17 @@ const authenticate = async (req, res, next) => {
     if (!dbUser.isActive) {
       return res.status(403).json({
         error: 'Account is deactivated. Contact your Gram Panchayat admin.',
+      });
+    }
+
+    // Verify tokenVersion matches to enforce instant token revocation on password change/reset/deactivation
+    if (
+      payload.tokenVersion !== undefined &&
+      dbUser.tokenVersion !== undefined &&
+      payload.tokenVersion !== dbUser.tokenVersion
+    ) {
+      return res.status(401).json({
+        error: 'Token has been revoked. Please log in again.',
       });
     }
 

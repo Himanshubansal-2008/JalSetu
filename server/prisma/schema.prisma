@@ -42,6 +42,8 @@ enum LedgerType {
 enum BillStatus {
   PENDING
   PAID
+  CANCELLED
+  WAIVED
 }
 
 model GramPanchayat {
@@ -65,19 +67,22 @@ model GramPanchayat {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  gpId      String
-  name      String
-  phone     String   @unique
-  password  String
-  role      Role     @default(WORKER)
-  isActive  Boolean  @default(true) @map("active")
-  createdAt DateTime @default(now())
+  id           String   @id @default(uuid())
+  gpId         String
+  name         String
+  phone        String   @unique
+  password     String
+  role         Role     @default(WORKER)
+  isActive     Boolean  @default(true) @map("active")
+  tokenVersion Int      @default(0)
+  createdAt    DateTime @default(now())
 
   gp            GramPanchayat @relation(fields: [gpId], references: [id])
   assetEvents   AssetEvent[]
   stockTxns     StockTxn[]
   ledgerEntries LedgerEntry[]
+
+  @@index([gpId])
 }
 
 model Asset {
@@ -122,8 +127,8 @@ model InventoryItem {
   gpId         String
   name         String
   unit         String   // kg, litre, piece
-  quantity     Float    @default(0)
-  reorderLevel Float    @default(0)
+  quantity     Int      @default(0)
+  reorderLevel Int      @default(0)
   createdAt    DateTime @default(now())
 
   gp   GramPanchayat @relation(fields: [gpId], references: [id])
@@ -136,7 +141,7 @@ model StockTxn {
   id          String       @id @default(uuid())
   itemId      String
   type        StockTxnType
-  quantity    Float
+  quantity    Int
   assetId     String?
   note        String?
   createdById String
@@ -145,6 +150,8 @@ model StockTxn {
   item      InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
   asset     Asset?        @relation(fields: [assetId], references: [id])
   createdBy User          @relation(fields: [createdById], references: [id])
+
+  @@index([itemId])
 }
 
 model LedgerEntry {
@@ -173,6 +180,7 @@ model LedgerEntry {
   createdBy User          @relation(fields: [createdById], references: [id])
 
   @@index([gpId, date])
+  @@index([assetId])
 }
 
 model Consumer {
@@ -188,25 +196,30 @@ model Consumer {
   gp    GramPanchayat @relation(fields: [gpId], references: [id])
   bills Bill[]
 
+  @@unique([gpId, houseNumber])
   @@index([gpId])
 }
 
 model Bill {
-  id          String     @id @default(uuid())
-  gpId        String
-  consumerId  String
-  month       String     // "2026-11"
-  amountPaise Int        // PAISE
-  status      BillStatus @default(PENDING)
-  paidAt      DateTime?
-  mode        String?
-  reference   String?
-  createdAt   DateTime   @default(now())
+  id           String     @id @default(uuid())
+  gpId         String
+  consumerId   String
+  month        String     // "2026-11"
+  amountPaise  Int        // PAISE
+  status       BillStatus @default(PENDING)
+  notes        String?
+  cancelReason String?
+  paidAt       DateTime?
+  mode         String?
+  reference    String?
+  createdAt    DateTime   @default(now())
 
   gp       GramPanchayat @relation(fields: [gpId], references: [id])
   consumer Consumer      @relation(fields: [consumerId], references: [id])
   ledger   LedgerEntry?
 
+  @@unique([gpId, consumerId, month])
   @@unique([consumerId, month])
+  @@index([consumerId])
   @@index([gpId, month])
 }
