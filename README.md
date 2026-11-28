@@ -1,6 +1,6 @@
 # JalSetu
 
-> In-class mobile app project: an Operation & Maintenance tool for Gram Panchayats to manage drinking water supply assets, consumables inventory, finances and consumer billing.
+> mobile app project: an Operation & Maintenance tool for Gram Panchayats to manage drinking water supply assets, consumables inventory, finances and consumer billing.
 
 ---
 
@@ -134,15 +134,42 @@ npm run dev
 ```bash
 cd mobile
 npm install
-# set API_URL in src/api/config.js (use the deployed https URL)
+cp .env.example .env      # set EXPO_PUBLIC_* variables
 npx expo start
 ```
 
-### Environment Variables (`server/.env`)
+### Building Standalone Android APK (EAS Build)
+For cloud builds with EAS (`eas build -p android --profile preview`), set the required environment variables via EAS Secrets or the EAS project dashboard rather than committing local `.env` files:
+
+```bash
+# Set secrets on EAS for cloud builds
+eas secret:create --scope project --name EXPO_PUBLIC_API_URL --value "https://your-api.onrender.com/api"
+eas secret:create --scope project --name EXPO_PUBLIC_GOOGLE_MAPS_API_KEY --value "YOUR_GOOGLE_MAPS_ANDROID_API_KEY"
+eas secret:create --scope project --name EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME --value "YOUR_CLOUDINARY_CLOUD_NAME"
+eas secret:create --scope project --name EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET --value "YOUR_CLOUDINARY_UPLOAD_PRESET"
+
+# Trigger preview standalone APK build
+eas build -p android --profile preview
+```
+
+### Environment Variables
+
+#### Server (`server/.env`)
 | Variable | Description |
 |---|---|
 | `DATABASE_URL` | PostgreSQL connection string |
-| `JWT_SECRET` | Secret for signing tokens |
+| `JWT_SECRET` | Secret for signing auth tokens |
+| `DEMO_MODE` | `"true"` to enable one-tap demo logins (keep `"false"` in production) |
+| `MAIN_ADMIN_PHONE` | Initial Super Administrator bootstrap phone number |
+| `MAIN_ADMIN_PASSWORD` | Initial Super Administrator bootstrap password |
+
+#### Mobile (`mobile/.env` & EAS Build Environment)
+| Variable | Description |
+|---|---|
+| `EXPO_PUBLIC_API_URL` | Base URL of the backend API (e.g. `https://your-api.onrender.com/api`) |
+| `EXPO_PUBLIC_GOOGLE_MAPS_API_KEY` | Google Maps SDK API key for standalone Android map rendering |
+| `EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name for direct photo uploads |
+| `EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET` | Cloudinary unsigned upload preset for asset verification photos |
 
 ### Demo Credentials
 <!-- TODO (Day 7): fill after seeding -->
