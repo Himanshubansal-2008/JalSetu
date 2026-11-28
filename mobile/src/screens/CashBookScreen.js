@@ -13,6 +13,8 @@ import {
   RefreshControl,
   ActivityIndicator,
   StyleSheet,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -87,6 +89,12 @@ export default function CashBookScreen({ route, navigation }) {
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+
+  // Opening balance edit modal state
+  const [editObModalVisible, setEditObModalVisible] = useState(false);
+  const [obInputRupees, setObInputRupees] = useState('');
+  const [updatingOb, setUpdatingOb] = useState(false);
+  const [obError, setObError] = useState('');
 
   const requestIdRef = useRef(0);
   const hasDataRef = useRef(false);
@@ -190,6 +198,33 @@ export default function CashBookScreen({ route, navigation }) {
   const totalExpensesPaise = cashbook?.totalExpensesPaise ?? 0;
   const closingBalancePaise = cashbook?.closingBalancePaise ?? 0;
   const entries = cashbook?.entries ?? [];
+
+  const handleOpenEditOb = () => {
+    const currentRupees = (openingBalancePaise / 100).toString();
+    setObInputRupees(currentRupees);
+    setObError('');
+    setEditObModalVisible(true);
+  };
+
+  const handleSaveOpeningBalance = async () => {
+    const num = parseFloat(obInputRupees);
+    if (isNaN(num) || num < 0) {
+      setObError('Please enter a valid non-negative amount in ₹');
+      return;
+    }
+    const paise = Math.round(num * 100);
+    setUpdatingOb(true);
+    setObError('');
+    try {
+      await apiClient.patch('/gp/opening-balance', { openingBalancePaise: paise });
+      setEditObModalVisible(false);
+      await fetchCashbook({ isRefresh: true });
+    } catch (err) {
+      setObError(getErrorMessage(err, 'Failed to update opening balance'));
+    } finally {
+      setUpdatingOb(false);
+    }
+  };
 
   return (
     <ScrollView
@@ -317,11 +352,24 @@ export default function CashBookScreen({ route, navigation }) {
             </View>
             <Text style={styles.balanceCardLabel}>{strings.openingBalance}</Text>
           </View>
-          <Text style={styles.balanceDateSubtext}>
-            {cashbook?.startDate
-              ? `${strings.asOf} ${formatDisplay(cashbook.startDate) || isoToDateString(cashbook.startDate)}`
-              : ''}
-          </Text>
+          <View style={styles.obHeaderRight}>
+            <Text style={styles.balanceDateSubtext}>
+              {cashbook?.startDate
+                ? `${strings.asOf} ${formatDisplay(cashbook.startDate) || isoToDateString(cashbook.startDate)}`
+                : ''}
+            </Text>
+            {isAdmin ? (
+              <TouchableOpacity
+                onPress={handleOpenEditOb}
+                style={styles.editObBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Edit Opening Balance"
+              >
+                <Ionicons name="create-outline" size={13} color={colors.primary} style={{ marginRight: 3 }} />
+                <Text style={styles.editObBtnText}>Edit</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
         </View>
         <Text style={styles.openingBalanceValue}>
           {formatPaiseToRupees(openingBalancePaise)}
@@ -523,6 +571,75 @@ export default function CashBookScreen({ route, navigation }) {
           </Text>
         </View>
       </View>
+
+      {/* Edit Opening Balance Modal */}
+      <Modal
+        visible={editObModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditObModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalTitleRow}>
+                <Ionicons name="wallet-outline" size={18} color={colors.primary} style={{ marginRight: 6 }} />
+                <Text style={styles.modalTitle}>Set Opening Balance</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setEditObModalVisible(false)}
+                disabled={updatingOb}
+              >
+                <Ionicons name="close" size={20} color={colors.muted} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalSubtitle}>
+              Enter the base starting balance for your Gram Panchayat (in ₹). Changes reflect across your Cash Book and monthly summaries.
+            </Text>
+
+            {obError ? (
+              <View style={styles.modalErrorBox}>
+                <Ionicons name="alert-circle-outline" size={15} color={tones.danger.fg} style={{ marginRight: 6 }} />
+                <Text style={styles.modalErrorText}>{obError}</Text>
+              </View>
+            ) : null}
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.currencyPrefix}>₹</Text>
+              <TextInput
+                style={styles.obTextInput}
+                value={obInputRupees}
+                onChangeText={setObInputRupees}
+                placeholder="0.00"
+                keyboardType="numeric"
+                editable={!updatingOb}
+              />
+            </View>
+
+            <View style={styles.modalActionButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setEditObModalVisible(false)}
+                disabled={updatingOb}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSaveBtn, updatingOb && styles.btnDisabled]}
+                onPress={handleSaveOpeningBalance}
+                disabled={updatingOb}
+              >
+                {updatingOb ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.modalSaveText}>Save Balance</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -857,5 +974,129 @@ const styles = StyleSheet.create({
   closingBalanceValue: {
     fontSize: 20,
     fontWeight: '700',
+  },
+  obHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  editObBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: tones.info.bg,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radius.sm,
+  },
+  editObBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  modalCard: {
+    width: '100%',
+    backgroundColor: colors.white,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  modalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    color: colors.muted,
+    marginBottom: spacing.md,
+    lineHeight: 18,
+  },
+  modalErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: tones.danger.bg,
+    padding: spacing.sm,
+    borderRadius: radius.sm,
+    marginBottom: spacing.md,
+  },
+  modalErrorText: {
+    color: tones.danger.fg,
+    fontSize: 13,
+    flex: 1,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.background,
+    marginBottom: spacing.lg,
+  },
+  currencyPrefix: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginRight: 6,
+  },
+  obTextInput: {
+    flex: 1,
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    paddingVertical: 10,
+  },
+  modalActionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.sm,
+  },
+  modalCancelBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: radius.md,
+  },
+  modalCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.muted,
+  },
+  modalSaveBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSaveText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  btnDisabled: {
+    opacity: 0.6,
   },
 });

@@ -71,6 +71,7 @@ export default function ConsumerDetailScreen({ route, navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [payingBillId, setPayingBillId] = useState(null);
+  const [unpayingBillId, setUnpayingBillId] = useState(null);
   const [selectedBillForPay, setSelectedBillForPay] = useState(null);
   const [payModalVisible, setPayModalVisible] = useState(false);
   const [sharingPdfBillId, setSharingPdfBillId] = useState(null);
@@ -183,6 +184,32 @@ export default function ConsumerDetailScreen({ route, navigation }) {
     } finally {
       setPayingBillId(null);
     }
+  };
+
+  const handleUnpayBill = (bill) => {
+    if (!isAdmin) return;
+    Alert.alert(
+      'Reverse Bill Payment',
+      `Are you sure you want to reverse payment for ${bill.month}? This will mark the bill as pending and void the ledger receipt.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reverse Payment',
+          style: 'destructive',
+          onPress: async () => {
+            setUnpayingBillId(bill.id);
+            try {
+              await apiClient.post(`/bills/${bill.id}/unpay`);
+              await fetchConsumer({ isRefresh: true });
+            } catch (err) {
+              Alert.alert('Reversal Failed', getErrorMessage(err));
+            } finally {
+              setUnpayingBillId(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const isInactive = consumer && !consumer.isActive;
@@ -438,29 +465,55 @@ export default function ConsumerDetailScreen({ route, navigation }) {
                           </Text>
                         </View>
 
-                        <TouchableOpacity
-                          style={styles.shareBtn}
-                          onPress={() => handleShareBill(bill)}
-                          disabled={sharingPdfBillId === bill.id}
-                          accessibilityRole="button"
-                          accessibilityLabel={strings.shareReceiptPdf || 'Share Receipt PDF'}
-                        >
-                          {sharingPdfBillId === bill.id ? (
-                            <ActivityIndicator size="small" color={colors.primary} />
-                          ) : (
-                            <>
-                              <Ionicons
-                                name="share-outline"
-                                size={14}
-                                color={colors.primary}
-                                style={{ marginRight: 4 }}
-                              />
-                              <Text style={styles.shareBtnText}>
-                                {strings.shareReceiptPdf || 'Share Receipt'}
-                              </Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
+                        <View style={styles.paidButtonsRow}>
+                          {isAdmin ? (
+                            <TouchableOpacity
+                              style={styles.reverseBtn}
+                              onPress={() => handleUnpayBill(bill)}
+                              disabled={unpayingBillId === bill.id}
+                              accessibilityRole="button"
+                              accessibilityLabel="Reverse Payment"
+                            >
+                              {unpayingBillId === bill.id ? (
+                                <ActivityIndicator size="small" color={tones.danger.fg} />
+                              ) : (
+                                <>
+                                  <Ionicons
+                                    name="arrow-undo-outline"
+                                    size={13}
+                                    color={tones.danger.fg}
+                                    style={{ marginRight: 3 }}
+                                  />
+                                  <Text style={styles.reverseBtnText}>Reverse</Text>
+                                </>
+                              )}
+                            </TouchableOpacity>
+                          ) : null}
+
+                          <TouchableOpacity
+                            style={styles.shareBtn}
+                            onPress={() => handleShareBill(bill)}
+                            disabled={sharingPdfBillId === bill.id}
+                            accessibilityRole="button"
+                            accessibilityLabel={strings.shareReceiptPdf || 'Share Receipt PDF'}
+                          >
+                            {sharingPdfBillId === bill.id ? (
+                              <ActivityIndicator size="small" color={colors.primary} />
+                            ) : (
+                              <>
+                                <Ionicons
+                                  name="share-outline"
+                                  size={14}
+                                  color={colors.primary}
+                                  style={{ marginRight: 4 }}
+                                />
+                                <Text style={styles.shareBtnText}>
+                                  {strings.shareReceiptPdf || 'Share Receipt'}
+                                </Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     ) : (
                       <View style={styles.pendingActionRow}>
@@ -932,6 +985,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: colors.white,
+  },
+  paidButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  reverseBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: tones.danger.bg,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.2)',
+  },
+  reverseBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: tones.danger.fg,
   },
   errorContainer: {
     backgroundColor: tones.danger.bg,

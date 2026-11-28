@@ -11,8 +11,8 @@ const {
 // Validation schema for UUID route params
 const idParamSchema = z.string().uuid();
 
-// Reusable select fields for Asset (excluding photo)
-const assetSelectWithoutPhoto = {
+// Reusable select fields for Asset
+const assetSelectStandard = {
   id: true,
   gpId: true,
   name: true,
@@ -25,6 +25,7 @@ const assetSelectWithoutPhoto = {
   warrantyExpiry: true,
   attributes: true,
   notes: true,
+  photo: true,
   createdAt: true,
 };
 
@@ -37,16 +38,30 @@ async function createAsset(req, res, next) {
       return res.status(400).json({ error: parsed.error.issues[0].message });
     }
 
+    const resolvedPhoto =
+      parsed.data.photoUrl !== undefined
+        ? parsed.data.photoUrl
+        : (parsed.data.photo !== undefined ? parsed.data.photo : null);
+
+    const assetData = {
+      ...parsed.data,
+      photo: resolvedPhoto,
+      gpId: req.user.gpId,
+    };
+    delete assetData.photoUrl;
+
     // 2. Insert into database (gpId comes strictly from authenticated user)
     const asset = await prisma.asset.create({
-      data: {
-        ...parsed.data,
-        gpId: req.user.gpId,
-      },
-      select: assetSelectWithoutPhoto,
+      data: assetData,
+      select: assetSelectStandard,
     });
 
-    return res.status(201).json({ asset });
+    return res.status(201).json({
+      asset: {
+        ...asset,
+        photoUrl: asset.photo || null,
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -78,16 +93,21 @@ async function listAssets(req, res, next) {
     }
 
     // 3. Query assets and total count in transaction
-    const [assets, total] = await prisma.$transaction([
+    const [rawAssets, total] = await prisma.$transaction([
       prisma.asset.findMany({
         where,
-        select: assetSelectWithoutPhoto,
+        select: assetSelectStandard,
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
       }),
       prisma.asset.count({ where }),
     ]);
+
+    const assets = rawAssets.map((a) => ({
+      ...a,
+      photoUrl: a.photo || null,
+    }));
 
     return res.status(200).json({
       assets,
@@ -250,7 +270,11 @@ async function updateAsset(req, res, next) {
     if (parsed.data.warrantyExpiry !== undefined) updateData.warrantyExpiry = parsed.data.warrantyExpiry;
     if (parsed.data.cost !== undefined) updateData.cost = parsed.data.cost;
     if (parsed.data.notes !== undefined) updateData.notes = parsed.data.notes;
-    if (parsed.data.photo !== undefined) updateData.photo = parsed.data.photo;
+    if (parsed.data.photoUrl !== undefined) {
+      updateData.photo = parsed.data.photoUrl;
+    } else if (parsed.data.photo !== undefined) {
+      updateData.photo = parsed.data.photo;
+    }
 
     if (parsed.data.attributes !== undefined) {
       if (parsed.data.attributes === null) {
@@ -277,7 +301,7 @@ async function updateAsset(req, res, next) {
       const asset = await tx.asset.update({
         where: { id: existingAsset.id },
         data: updateData,
-        select: assetSelectWithoutPhoto,
+        select: assetSelectStandard,
       });
 
       if (statusChanged) {
@@ -294,7 +318,12 @@ async function updateAsset(req, res, next) {
       return [asset];
     });
 
-    return res.status(200).json({ asset: updatedAsset });
+    return res.status(200).json({
+      asset: {
+        ...updatedAsset,
+        photoUrl: updatedAsset.photo || null,
+      },
+    });
   } catch (err) {
     next(err);
   }

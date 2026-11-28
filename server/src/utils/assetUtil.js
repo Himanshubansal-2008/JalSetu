@@ -130,6 +130,18 @@ const updateDateSchema = (fieldName, rejectFuture = false) =>
       return new Date(val);
     });
 
+// Schema for validating secure HTTPS photo URLs (e.g. Cloudinary)
+const httpsPhotoUrlSchema = z
+  .string({ invalid_type_error: 'Photo URL must be a string' })
+  .trim()
+  .max(1000, 'Photo URL cannot exceed 1000 characters')
+  .url('Photo URL must be a valid URL')
+  .refine((val) => val.startsWith('https://'), {
+    message: 'Photo URL must be a secure HTTPS URL (e.g. https://res.cloudinary.com/...)',
+  })
+  .nullable()
+  .optional();
+
 // Schema for validating base64 photo data
 const photoSchema = z
   .string({
@@ -281,7 +293,8 @@ const createAssetSchema = z
       )
       .nullable()
       .optional(),
-    photo: photoSchema.nullable().optional(),
+    photoUrl: httpsPhotoUrlSchema,
+    photo: z.union([httpsPhotoUrlSchema, photoSchema]).nullable().optional(),
   })
   .superRefine((data, ctx) => {
     const hasLat = data.lat !== undefined && data.lat !== null;
@@ -294,8 +307,11 @@ const createAssetSchema = z
     }
   })
   .transform((data) => {
+    const resolvedPhoto = data.photoUrl !== undefined ? data.photoUrl : (data.photo !== undefined ? data.photo : null);
     const sanitized = {
       ...data,
+      photo: resolvedPhoto,
+      photoUrl: resolvedPhoto,
       attributes: sanitizeAttributes(data.type, data.attributes),
     };
     if (sanitized.photo === null || sanitized.photo === undefined) {
@@ -360,7 +376,8 @@ const updateAssetSchema = z
       .trim()
       .max(300, 'Status note must be at most 300 characters')
       .optional(),
-    photo: photoSchema.nullable().optional(),
+    photoUrl: httpsPhotoUrlSchema,
+    photo: z.union([httpsPhotoUrlSchema, photoSchema]).nullable().optional(),
   })
   .superRefine((data, ctx) => {
     // If either lat or lng is present, both must be present
@@ -387,6 +404,7 @@ const updateAssetSchema = z
       'attributes',
       'statusNote',
       'photo',
+      'photoUrl',
     ];
     const hasAnyField = updatableKeys.some((k) => data[k] !== undefined);
     if (!hasAnyField) {
@@ -448,16 +466,8 @@ const createAssetEventSchema = z.object({
     .trim()
     .min(1, 'Note cannot be empty')
     .max(2000, 'Note cannot exceed 2000 characters'),
-  photoUrl: z
-    .string({ invalid_type_error: 'photoUrl must be a string' })
-    .trim()
-    .nullable()
-    .optional(),
-  photo: z
-    .string({ invalid_type_error: 'photo must be a string' })
-    .trim()
-    .nullable()
-    .optional(),
+  photoUrl: httpsPhotoUrlSchema,
+  photo: httpsPhotoUrlSchema,
 });
 
 module.exports = {

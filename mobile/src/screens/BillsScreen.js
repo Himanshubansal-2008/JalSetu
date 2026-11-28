@@ -118,6 +118,7 @@ export default function BillsScreen({ navigation, route }) {
   // Action states
   const [generating, setGenerating] = useState(false);
   const [payingBillId, setPayingBillId] = useState(null);
+  const [unpayingBillId, setUnpayingBillId] = useState(null);
   const [selectedBillForPay, setSelectedBillForPay] = useState(null);
   const [payModalVisible, setPayModalVisible] = useState(false);
   const [sharingPdfBillId, setSharingPdfBillId] = useState(null);
@@ -260,6 +261,33 @@ export default function BillsScreen({ navigation, route }) {
     }
   };
 
+  // Reverse Payment Action for Paid Bill
+  const handleUnpayBill = (bill) => {
+    if (!isAdmin) return;
+    Alert.alert(
+      'Reverse Bill Payment',
+      `Are you sure you want to reverse payment for ${bill.consumer?.name || 'this consumer'} (${bill.month})? This will mark the bill as pending and void the ledger receipt.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reverse Payment',
+          style: 'destructive',
+          onPress: async () => {
+            setUnpayingBillId(bill.id);
+            try {
+              await apiClient.post(`/bills/${bill.id}/unpay`);
+              await fetchData({ isRefresh: true });
+            } catch (err) {
+              Alert.alert('Reversal Failed', getErrorMessage(err));
+            } finally {
+              setUnpayingBillId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // Share Bill / PDF Action
   const handleShareBill = async (bill) => {
     if (sharingPdfBillId) return;
@@ -329,29 +357,55 @@ export default function BillsScreen({ navigation, route }) {
                 }
               />
 
-              <TouchableOpacity
-                style={styles.shareBtn}
-                onPress={() => handleShareBill(item)}
-                disabled={sharingPdfBillId === item.id}
-                accessibilityRole="button"
-                accessibilityLabel={strings.shareReceiptPdf || 'Share Receipt PDF'}
-              >
-                {sharingPdfBillId === item.id ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <>
-                    <Ionicons
-                      name="share-outline"
-                      size={14}
-                      color={colors.primary}
-                      style={{ marginRight: 4 }}
-                    />
-                    <Text style={styles.shareBtnText}>
-                      {strings.shareReceiptPdf || 'Share Receipt'}
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              <View style={styles.paidActionsRow}>
+                {isAdmin ? (
+                  <TouchableOpacity
+                    style={styles.reverseBtn}
+                    onPress={() => handleUnpayBill(item)}
+                    disabled={unpayingBillId === item.id}
+                    accessibilityRole="button"
+                    accessibilityLabel="Reverse Payment"
+                  >
+                    {unpayingBillId === item.id ? (
+                      <ActivityIndicator size="small" color={tones.danger.fg} />
+                    ) : (
+                      <>
+                        <Ionicons
+                          name="arrow-undo-outline"
+                          size={13}
+                          color={tones.danger.fg}
+                          style={{ marginRight: 3 }}
+                        />
+                        <Text style={styles.reverseBtnText}>Reverse</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                ) : null}
+
+                <TouchableOpacity
+                  style={styles.shareBtn}
+                  onPress={() => handleShareBill(item)}
+                  disabled={sharingPdfBillId === item.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={strings.shareReceiptPdf || 'Share Receipt PDF'}
+                >
+                  {sharingPdfBillId === item.id ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <>
+                      <Ionicons
+                        name="share-outline"
+                        size={14}
+                        color={colors.primary}
+                        style={{ marginRight: 4 }}
+                      />
+                      <Text style={styles.shareBtnText}>
+                        {strings.shareReceiptPdf || 'Share Receipt'}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
           ) : (
             <View style={styles.pendingActionRow}>
@@ -960,6 +1014,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: colors.white,
+  },
+  paidActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  reverseBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: tones.danger.bg,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.2)',
+  },
+  reverseBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: tones.danger.fg,
   },
   emptyCard: {
     backgroundColor: colors.white,
