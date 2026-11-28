@@ -25,8 +25,8 @@ export default function LoginScreen({ navigation }) {
   const [apiError, setApiError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Demo Login states
-  const [demoRoleLoading, setDemoRoleLoading] = useState(null); // 'main_admin' | 'admin' | 'worker' | null
+  // Demo Login states (GP Admin and Field Worker only)
+  const [demoRoleLoading, setDemoRoleLoading] = useState(null); // 'admin' | 'worker' | null
 
   const login = useAuthStore((state) => state.login);
   const demoLogin = useAuthStore((state) => state.demoLogin);
@@ -165,26 +165,7 @@ export default function LoginScreen({ navigation }) {
             </View>
           ) : null}
 
-          {/* 1. Demo Main Admin Button */}
-          <TouchableOpacity
-            style={[
-              styles.demoButton,
-              styles.demoMainAdminButton,
-              isAnyLoading && styles.disabledButton,
-            ]}
-            onPress={() => handleDemoLogin('main_admin')}
-            disabled={isAnyLoading}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel="Demo Main Admin"
-          >
-            <Ionicons name="shield" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-            <Text style={styles.demoMainAdminButtonText}>
-              {demoRoleLoading === 'main_admin' ? 'Logging in Main Admin...' : (strings.demoMainAdminLogin || 'Demo Main Admin')}
-            </Text>
-          </TouchableOpacity>
-
-          {/* 2. Demo GP Admin Button */}
+          {/* 1. Demo GP Admin Button */}
           <TouchableOpacity
             style={[
               styles.demoButton,
@@ -203,7 +184,7 @@ export default function LoginScreen({ navigation }) {
             </Text>
           </TouchableOpacity>
 
-          {/* 3. Demo Worker Button */}
+          {/* 2. Demo Worker Button */}
           <TouchableOpacity
             style={[
               styles.demoButton,
@@ -331,14 +312,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginBottom: 10,
-  },
-  demoMainAdminButton: {
-    backgroundColor: '#B45309', // amber/gold
-  },
-  demoMainAdminButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
   },
   demoGpAdminButton: {
     backgroundColor: colors.primary,

@@ -40,9 +40,9 @@ export default function ProfileScreen({ navigation }) {
   const logout = useAuthStore((state) => state.logout);
   const fetchProfile = useAuthStore((state) => state.fetchProfile);
 
-  const role = (user?.role || '').toLowerCase();
-  const isMainAdmin = role === 'main_admin' || Boolean(user?.isMainAdmin || user?.phone === '9992934154');
-  const isAdmin = role === 'admin' || isMainAdmin;
+  const role = (user?.role || '').toUpperCase();
+  const isMainAdmin = role === 'SUPER_ADMIN' || Boolean(user?.isSuperAdmin || user?.isMainAdmin);
+  const isAdmin = role === 'ADMIN' || isMainAdmin;
 
   const [refreshing, setRefreshing] = useState(false);
   const [pendingGps, setPendingGps] = useState([]);
@@ -390,7 +390,7 @@ export default function ProfileScreen({ navigation }) {
               <Ionicons name="chevron-forward" size={18} color={colors.muted} />
             </TouchableOpacity>
 
-            {/* Pending GP Approvals Section - Only visible to Main Admin (9992934154) */}
+            {/* Pending GP Approvals Section - Only visible to Main Admin */}
             {isMainAdmin && pendingGps && pendingGps.length > 0 ? (
               <View style={styles.pendingGpsContainer}>
                 <View style={styles.pendingGpsHeader}>

@@ -14,14 +14,10 @@ function signToken(user) {
 
 /**
  * Formats a user object for API responses, removing sensitive fields
- * and computing platform-level flags (e.g., isMainAdmin).
+ * and computing platform-level flags based strictly on schema role.
  */
 function publicUser(user) {
-  const mainAdminPhone = (process.env.MAIN_ADMIN_PHONE || '9992934154').trim();
-  const isMainAdmin = Boolean(
-    (user.role === 'ADMIN' || user.role === 'admin') &&
-    user.phone === mainAdminPhone
-  );
+  const isSuperAdmin = user.role === 'SUPER_ADMIN';
 
   return {
     id: user.id,
@@ -30,11 +26,13 @@ function publicUser(user) {
     role: user.role,
     gpId: user.gpId,
     isActive: Boolean(user.isActive !== undefined ? user.isActive : user.active),
-    isMainAdmin,
+    isSuperAdmin,
+    isMainAdmin: isSuperAdmin,
   };
 }
 
 // Zod validation schema for Gram Panchayat registration (signup)
+// Explicitly only creates standard GP Admin - never accepts or allows SUPER_ADMIN
 const signupSchema = z.object({
   gpName: z.string().min(2, 'Gram Panchayat name must be at least 2 characters'),
   village: z.string().min(2, 'Village name must be at least 2 characters'),

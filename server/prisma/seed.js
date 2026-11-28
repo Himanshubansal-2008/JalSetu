@@ -31,7 +31,7 @@ async function main() {
   console.log(`Location       : ${gp.village}, ${gp.district}, ${gp.state}`);
   console.log('----------------------------------------------------------------');
   console.log('Accounts Configured for Demo / Testing:');
-  console.log(`  Main Admin   : Phone ${mainAdminUser?.phone || '9992934154'}  (Role: main_admin - Super Admin)`);
+  console.log(`  Super Admin  : Phone ${mainAdminUser?.phone || process.env.MAIN_ADMIN_PHONE || 'Configured via MAIN_ADMIN_PHONE'}  (Role: SUPER_ADMIN)`);
   console.log(`  GP Admin     : Phone ${adminUser.phone}  (Role: admin - Sarpanch)`);
   console.log(`  Worker User  : Phone ${workerUser.phone}  (Role: worker)`);
   console.log('  * Access via 1-tap demo buttons on mobile login (no passwords required for demo accounts)');

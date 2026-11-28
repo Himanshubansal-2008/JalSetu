@@ -86,47 +86,47 @@ async function registerGp(req, res, next) {
 /**
  * Demo 1-tap login for testing & presentations.
  * POST /api/auth/demo-login
- * Accepts role: "main_admin" | "admin" | "worker"
+ * Environment gated: Only allowed when process.env.DEMO_MODE === "true".
+ * Strictly restricts allowed roles to "admin" (GP Admin) and "worker".
+ * Never allows main_admin or SUPER_ADMIN access via demo login.
  */
 async function demoLogin(req, res, next) {
   try {
-    const { role } = req.body;
+    if (process.env.DEMO_MODE !== 'true') {
+      return res.status(403).json({ error: 'Demo mode is disabled' });
+    }
 
+    const { role } = req.body;
     const normalizedRole = typeof role === 'string' ? role.toLowerCase() : '';
-    if (normalizedRole !== 'main_admin' && normalizedRole !== 'admin' && normalizedRole !== 'worker') {
-      return res.status(400).json({ error: 'Role must be "main_admin", "admin", or "worker"' });
+
+    if (normalizedRole === 'main_admin' || normalizedRole === 'super_admin') {
+      return res.status(403).json({
+        error: 'Super Administrator accounts cannot be accessed via demo login. Please log in using credentials.',
+      });
+    }
+
+    if (normalizedRole !== 'admin' && normalizedRole !== 'worker') {
+      return res.status(400).json({ error: 'Role must be "admin" or "worker"' });
     }
 
     // Ensure demo dataset exists without wiping existing data
-    const { gp, adminUser, workerUser, mainAdminUser } = await seedDemoGp(prisma, { forceReset: false });
+    const { gp, adminUser, workerUser } = await seedDemoGp(prisma, { forceReset: false });
 
     let user;
-    let userGp = gp;
-    const mainAdminPhone = (process.env.MAIN_ADMIN_PHONE || '9992934154').trim();
-
-    if (normalizedRole === 'main_admin') {
-      user = await prisma.user.findUnique({
-        where: { phone: mainAdminPhone },
-        include: { gp: true },
-      }) || mainAdminUser;
-      userGp = user?.gp || gp;
-    } else if (normalizedRole === 'admin') {
+    if (normalizedRole === 'admin') {
       user = await prisma.user.findFirst({
         where: {
           gpId: gp.id,
-          phone: { not: mainAdminPhone },
           role: 'ADMIN',
           isActive: true,
         },
         include: { gp: true },
       }) || adminUser;
-      userGp = gp;
     } else {
       user = await prisma.user.findFirst({
         where: { gpId: gp.id, role: 'WORKER', isActive: true },
         include: { gp: true },
       }) || workerUser;
-      userGp = gp;
     }
 
     if (!user) {
@@ -148,9 +148,9 @@ async function demoLogin(req, res, next) {
       token,
       user: {
         ...userPayload,
-        gp: userGp,
+        gp,
       },
-      gp: userGp,
+      gp,
     });
   } catch (err) {
     next(err);

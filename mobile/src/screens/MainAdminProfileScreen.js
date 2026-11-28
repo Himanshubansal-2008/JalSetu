@@ -95,7 +95,7 @@ export default function MainAdminProfileScreen({ navigation }) {
             <Text style={styles.userName}>{user?.name || 'Main Administrator'}</Text>
             <View style={styles.phoneRow}>
               <Ionicons name="call-outline" size={14} color={colors.muted} style={{ marginRight: 4 }} />
-              <Text style={styles.phoneText}>{user?.phone || '9992934154'}</Text>
+              <Text style={styles.phoneText}>{user?.phone || ''}</Text>
             </View>
             <View style={styles.roleBadge}>
               <Ionicons name="shield-checkmark" size={12} color="#92400E" style={{ marginRight: 4 }} />

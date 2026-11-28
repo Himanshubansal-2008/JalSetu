@@ -33,17 +33,15 @@ export default function RootNavigator() {
     );
   }
 
-  const isMainAdmin = Boolean(
-    user?.isMainAdmin ||
-    user?.role === 'main_admin' ||
-    user?.role === 'MAIN_ADMIN' ||
-    user?.phone === '9992934154'
+  const isSuperAdmin = Boolean(
+    user?.role === 'SUPER_ADMIN' ||
+    user?.role?.toUpperCase() === 'SUPER_ADMIN' ||
+    user?.isSuperAdmin
   );
 
   const isGpAdmin = Boolean(
-    user?.role === 'ADMIN' ||
-    user?.role === 'admin' ||
-    user?.role?.toUpperCase() === 'ADMIN'
+    !isSuperAdmin &&
+    (user?.role === 'ADMIN' || user?.role?.toUpperCase() === 'ADMIN')
   );
 
   return (
@@ -54,7 +52,7 @@ export default function RootNavigator() {
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Signup" component={SignupScreen} />
           </>
-        ) : isMainAdmin ? (
+        ) : isSuperAdmin ? (
           <>
             <Stack.Screen name="MainAdminRoot" component={MainAdminTabs} />
           </>

@@ -12,10 +12,10 @@ const router = express.Router();
 
 /**
  * Middleware allowing access to GP approval and inspection endpoints:
- * 1. Logged-in Main Admin whose token belongs to the designated Super Admin
+ * 1. Logged-in Super Admin whose schema role is strictly "SUPER_ADMIN"
  * 2. OR an optional SUPERADMIN_SECRET / ADMIN_APPROVAL_KEY header ONLY if explicitly non-empty in environment variables
  */
-const requireMainAdminOrKey = async (req, res, next) => {
+const requireSuperAdminOrKey = async (req, res, next) => {
   const secretKey = (process.env.SUPERADMIN_SECRET || process.env.ADMIN_APPROVAL_KEY || '').trim();
   const providedKey = req.headers['x-admin-approval-key'] || req.headers['x-superadmin-secret'];
 
@@ -24,25 +24,19 @@ const requireMainAdminOrKey = async (req, res, next) => {
     return next();
   }
 
-  // Otherwise authenticate strictly via valid JWT belonging to Main Admin
+  // Otherwise authenticate strictly via valid JWT belonging to Super Admin
   return authenticate(req, res, () => {
-    const mainAdminPhone = (process.env.MAIN_ADMIN_PHONE || '9992934154').trim();
-    const isMainAdmin = Boolean(
-      req.user &&
-      (req.user.isMainAdmin || req.user.phone === mainAdminPhone)
-    );
-
-    if (isMainAdmin) {
+    if (req.user && req.user.role === 'SUPER_ADMIN') {
       return next();
     }
     return res.status(403).json({
-      error: 'Access denied. Only the main administrator can view or approve Gram Panchayat registrations.',
+      error: 'Access denied. Only the platform Super Administrator can view or approve Gram Panchayat registrations.',
     });
   });
 };
 
-// Require Main Admin or Key on all routes in this router
-router.use(requireMainAdminOrKey);
+// Require Super Admin or Key on all routes in this router
+router.use(requireSuperAdminOrKey);
 
 // GET /api/gps/overview - Platform-wide summary of all Gram Panchayats
 router.get('/overview', getOverview);

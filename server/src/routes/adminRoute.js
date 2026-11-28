@@ -5,26 +5,20 @@ const { resetDemoData } = require('../controllers/adminController');
 const router = express.Router();
 
 /**
- * Middleware requiring authenticated Main Admin (Super Admin)
+ * Middleware requiring authenticated Super Admin based strictly on schema role.
  */
-const requireMainAdmin = (req, res, next) => {
-  const mainAdminPhone = (process.env.MAIN_ADMIN_PHONE || '9992934154').trim();
-  const isMainAdmin = Boolean(
-    req.user &&
-    (req.user.isMainAdmin || req.user.phone === mainAdminPhone)
-  );
-
-  if (!isMainAdmin) {
+const requireSuperAdmin = (req, res, next) => {
+  if (!req.user || req.user.role !== 'SUPER_ADMIN') {
     return res.status(403).json({
-      error: 'Access denied. Only the platform main administrator can perform administrative demo resets.',
+      error: 'Access denied. Only the platform Super Administrator can perform administrative demo resets.',
     });
   }
   next();
 };
 
-// All admin routes require authentication and Main Admin role
+// All admin routes require authentication and SUPER_ADMIN role
 router.use(authenticate);
-router.use(requireMainAdmin);
+router.use(requireSuperAdmin);
 
 // POST /api/admin/demo/reset - Reset demo Gram Panchayat dataset
 router.post('/demo/reset', resetDemoData);

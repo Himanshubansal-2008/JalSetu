@@ -52,9 +52,9 @@ export default function HomeScreen({ navigation }) {
   const authGp = useAuthStore((state) => state.gp);
   const logout = useAuthStore((state) => state.logout);
 
-  const role = (user?.role || '').toLowerCase();
-  const isMainAdmin = role === 'main_admin' || Boolean(user?.isMainAdmin);
-  const isAdmin = role === 'admin' || isMainAdmin;
+  const role = (user?.role || '').toUpperCase();
+  const isMainAdmin = role === 'SUPER_ADMIN' || Boolean(user?.isSuperAdmin || user?.isMainAdmin);
+  const isAdmin = role === 'ADMIN' || isMainAdmin;
 
   // Dashboard data and UI states
   const [dashboard, setDashboard] = useState(null);

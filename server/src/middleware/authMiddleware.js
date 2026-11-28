@@ -57,20 +57,17 @@ const authenticate = async (req, res, next) => {
       });
     }
 
-    const mainAdminPhone = (process.env.MAIN_ADMIN_PHONE || '9992934154').trim();
-    const isMainAdmin = Boolean(
-      (dbUser.role === 'ADMIN' || dbUser.role === 'admin') &&
-      dbUser.phone === mainAdminPhone
-    );
+    const isSuperAdmin = dbUser.role === 'SUPER_ADMIN';
 
     req.user = {
       id: dbUser.id,
-      role: isMainAdmin ? 'main_admin' : dbUser.role,
+      role: dbUser.role, // 'SUPER_ADMIN' | 'ADMIN' | 'WORKER'
       gpId: dbUser.gpId,
       name: dbUser.name,
       phone: dbUser.phone,
       isActive: dbUser.isActive,
-      isMainAdmin,
+      isSuperAdmin,
+      isMainAdmin: isSuperAdmin,
       gp: dbUser.gp,
     };
 
@@ -88,7 +85,7 @@ const requireRole = (...roles) => {
     const userRole = req.user?.role?.toUpperCase();
     const isMatch =
       normalized.includes(userRole) ||
-      (userRole === 'MAIN_ADMIN' && normalized.includes('ADMIN'));
+      (userRole === 'SUPER_ADMIN' && normalized.includes('ADMIN'));
 
     if (!req.user || !userRole || !isMatch) {
       return res.status(403).json({ error: 'Not allowed' });
