@@ -41,12 +41,17 @@ export default function ProfileScreen({ navigation }) {
   const fetchProfile = useAuthStore((state) => state.fetchProfile);
 
   const role = (user?.role || '').toLowerCase();
-  const isAdmin = role === 'admin';
+  const isMainAdmin = role === 'main_admin' || Boolean(user?.isMainAdmin || user?.phone === '9992934154');
+  const isAdmin = role === 'admin' || isMainAdmin;
 
   const [refreshing, setRefreshing] = useState(false);
   const [pendingGps, setPendingGps] = useState([]);
   const [loadingPendingGps, setLoadingPendingGps] = useState(false);
   const [approvingId, setApprovingId] = useState(null);
+
+  // All GPs live activity monitor (Main Admin only)
+  const [allGps, setAllGps] = useState([]);
+  const [loadingAllGps, setLoadingAllGps] = useState(false);
 
   // Reject / Decline modal state
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
@@ -56,7 +61,7 @@ export default function ProfileScreen({ navigation }) {
   const [rejectSubmitting, setRejectSubmitting] = useState(false);
 
   const fetchPendingGps = useCallback(async () => {
-    if (!isAdmin) return;
+    if (!isMainAdmin) return;
     try {
       setLoadingPendingGps(true);
       const res = await apiClient.get('/gps/pending');
@@ -66,7 +71,20 @@ export default function ProfileScreen({ navigation }) {
     } finally {
       setLoadingPendingGps(false);
     }
-  }, [isAdmin]);
+  }, [isMainAdmin]);
+
+  const fetchAllGpsOverview = useCallback(async () => {
+    if (!isMainAdmin) return;
+    try {
+      setLoadingAllGps(true);
+      const res = await apiClient.get('/gps/overview');
+      setAllGps(res.data?.gps || []);
+    } catch (_) {
+      // Ignore background fetch error
+    } finally {
+      setLoadingAllGps(false);
+    }
+  }, [isMainAdmin]);
 
   const handleApproveGp = useCallback((targetGp) => {
     Alert.alert(
@@ -82,6 +100,7 @@ export default function ProfileScreen({ navigation }) {
               await apiClient.patch(`/gps/${targetGp.id}/approve`);
               Alert.alert('Approved', `Gram Panchayat "${targetGp.name}" is now approved!`);
               fetchPendingGps();
+              fetchAllGpsOverview();
             } catch (err) {
               Alert.alert('Approval Failed', getErrorMessage(err));
             } finally {
@@ -120,6 +139,7 @@ export default function ProfileScreen({ navigation }) {
       setSelectedGpForReject(null);
       setRejectNote('');
       fetchPendingGps();
+      fetchAllGpsOverview();
     } catch (err) {
       setRejectError(getErrorMessage(err));
     } finally {
@@ -134,25 +154,26 @@ export default function ProfileScreen({ navigation }) {
       if (typeof fetchProfile === 'function') {
         await fetchProfile();
       }
-      if (isAdmin) {
-        await fetchPendingGps();
+      if (isMainAdmin) {
+        await Promise.all([fetchPendingGps(), fetchAllGpsOverview()]);
       }
     } catch (err) {
       // Handled by 401 interceptor if expired
     } finally {
       setRefreshing(false);
     }
-  }, [fetchProfile, fetchPendingGps, isAdmin]);
+  }, [fetchProfile, fetchPendingGps, fetchAllGpsOverview, isMainAdmin]);
 
   useFocusEffect(
     useCallback(() => {
       if (typeof fetchProfile === 'function') {
         fetchProfile().catch(() => {});
       }
-      if (isAdmin) {
+      if (isMainAdmin) {
         fetchPendingGps().catch(() => {});
+        fetchAllGpsOverview().catch(() => {});
       }
-    }, [fetchProfile, fetchPendingGps, isAdmin])
+    }, [fetchProfile, fetchPendingGps, fetchAllGpsOverview, isMainAdmin])
   );
 
   // Logout action with native confirmation
@@ -246,22 +267,34 @@ export default function ProfileScreen({ navigation }) {
               <View
                 style={[
                   styles.roleBadge,
-                  isAdmin ? styles.adminRoleBadge : styles.workerRoleBadge,
+                  isMainAdmin
+                    ? styles.mainAdminRoleBadge
+                    : isAdmin
+                    ? styles.adminRoleBadge
+                    : styles.workerRoleBadge,
                 ]}
               >
                 <Ionicons
-                  name={isAdmin ? 'shield-checkmark' : 'construct'}
+                  name={isMainAdmin ? 'shield' : isAdmin ? 'shield-checkmark' : 'construct'}
                   size={13}
-                  color={isAdmin ? tones.info.fg : tones.success.fg}
+                  color={isMainAdmin ? '#B45309' : isAdmin ? tones.info.fg : tones.success.fg}
                   style={{ marginRight: 4 }}
                 />
                 <Text
                   style={[
                     styles.roleBadgeText,
-                    isAdmin ? styles.adminRoleText : styles.workerRoleText,
+                    isMainAdmin
+                      ? styles.mainAdminRoleText
+                      : isAdmin
+                      ? styles.adminRoleText
+                      : styles.workerRoleText,
                   ]}
                 >
-                  {isAdmin ? 'Gram Panchayat Admin' : 'Field Worker'}
+                  {isMainAdmin
+                    ? 'Main Administrator (Super Admin)'
+                    : isAdmin
+                    ? 'Gram Panchayat Admin'
+                    : 'Field Worker'}
                 </Text>
               </View>
             </View>
@@ -357,8 +390,8 @@ export default function ProfileScreen({ navigation }) {
               <Ionicons name="chevron-forward" size={18} color={colors.muted} />
             </TouchableOpacity>
 
-            {/* Pending GP Approvals Section */}
-            {pendingGps && pendingGps.length > 0 ? (
+            {/* Pending GP Approvals Section - Only visible to Main Admin (9992934154) */}
+            {isMainAdmin && pendingGps && pendingGps.length > 0 ? (
               <View style={styles.pendingGpsContainer}>
                 <View style={styles.pendingGpsHeader}>
                   <Ionicons name="time" size={16} color={tones.warning.fg} style={{ marginRight: 6 }} />
@@ -409,6 +442,85 @@ export default function ProfileScreen({ navigation }) {
                           <Text style={styles.approveButtonText}>Approve</Text>
                         )}
                       </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
+            {/* Gram Panchayat Activity Monitor - ONLY for Main Admin */}
+            {isMainAdmin && allGps && allGps.length > 0 ? (
+              <View style={styles.monitorContainer}>
+                <View style={styles.monitorHeaderRow}>
+                  <Ionicons name="business" size={16} color={colors.primary} style={{ marginRight: 6 }} />
+                  <Text style={styles.monitorTitle}>
+                    Gram Panchayat Activity Monitor ({allGps.length})
+                  </Text>
+                </View>
+                <Text style={styles.monitorSubtitle}>
+                  Real-time operational activity across all registered Gram Panchayats
+                </Text>
+
+                {allGps.map((g) => (
+                  <View key={g.id} style={styles.monitorGpCard}>
+                    <View style={styles.monitorCardHeader}>
+                      <View style={{ flex: 1, marginRight: 8 }}>
+                        <Text style={styles.monitorGpName}>{g.name}</Text>
+                        <Text style={styles.monitorGpLocation}>
+                          {g.village}, {g.district} • {g.state}
+                        </Text>
+                      </View>
+                      <View
+                        style={[
+                          styles.statusPillSmall,
+                          { backgroundColor: g.isApproved ? tones.success.bg : tones.warning.bg },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.statusPillSmallText,
+                            { color: g.isApproved ? tones.success.fg : tones.warning.fg },
+                          ]}
+                        >
+                          {g.isApproved ? 'APPROVED' : 'PENDING'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {g.admin ? (
+                      <Text style={styles.monitorAdminText}>
+                        Admin: {g.admin.name} • {g.admin.phone}
+                      </Text>
+                    ) : null}
+
+                    {/* Operational Stats Grid */}
+                    <View style={styles.statsPillRow}>
+                      <View style={styles.statMiniChip}>
+                        <Text style={styles.statMiniLabel}>Assets</Text>
+                        <Text style={styles.statMiniValue}>
+                          {g.stats.totalAssets}
+                          {g.stats.faultyAssets > 0 ? (
+                            <Text style={{ color: tones.danger.fg }}> ({g.stats.faultyAssets} faulty)</Text>
+                          ) : null}
+                        </Text>
+                      </View>
+
+                      <View style={styles.statMiniChip}>
+                        <Text style={styles.statMiniLabel}>Workers</Text>
+                        <Text style={styles.statMiniValue}>{g.stats.workersCount}</Text>
+                      </View>
+
+                      <View style={styles.statMiniChip}>
+                        <Text style={styles.statMiniLabel}>Consumers</Text>
+                        <Text style={styles.statMiniValue}>{g.stats.totalConsumers}</Text>
+                      </View>
+
+                      <View style={styles.statMiniChip}>
+                        <Text style={styles.statMiniLabel}>Collected</Text>
+                        <Text style={styles.statMiniValue}>
+                          ₹{Math.round((g.stats.totalCollectedPaise || 0) / 100).toLocaleString('en-IN')}
+                        </Text>
+                      </View>
                     </View>
                   </View>
                 ))}
@@ -641,6 +753,15 @@ const styles = StyleSheet.create({
   adminRoleBadge: {
     backgroundColor: tones.info.bg,
   },
+  mainAdminRoleBadge: {
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  mainAdminRoleText: {
+    color: '#92400E',
+    fontWeight: '700',
+  },
   workerRoleBadge: {
     backgroundColor: tones.success.bg,
   },
@@ -794,6 +915,91 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
+  },
+  // Monitor styles
+  monitorContainer: {
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  monitorHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  monitorTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  monitorSubtitle: {
+    fontSize: 12,
+    color: colors.muted,
+    marginTop: 2,
+    marginBottom: spacing.sm,
+  },
+  monitorGpCard: {
+    backgroundColor: '#F8FAFC',
+    padding: spacing.sm + 2,
+    borderRadius: radius.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  monitorCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  monitorGpName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  monitorGpLocation: {
+    fontSize: 11,
+    color: colors.muted,
+    marginTop: 1,
+  },
+  statusPillSmall: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+  },
+  statusPillSmallText: {
+    fontSize: 9,
+    fontWeight: '700',
+  },
+  monitorAdminText: {
+    fontSize: 11,
+    color: colors.text,
+    marginBottom: 6,
+  },
+  statsPillRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  statMiniChip: {
+    backgroundColor: colors.white,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  statMiniLabel: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: colors.muted,
+    textTransform: 'uppercase',
+  },
+  statMiniValue: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: 1,
   },
   // Modal styles for decline
   modalBackdrop: {

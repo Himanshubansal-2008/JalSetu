@@ -55,10 +55,13 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong' });
 });
 
+const { ensureMainAdminExists } = require('./utils/mainAdmin');
+
 // Listen on configured port or default to 4000
 const PORT = process.env.PORT || 4000;
 const server = app.listen(PORT, () => {
-  console.log(`API running on ${PORT}`);
+  console.log(`JalSetu server running on port ${PORT}`);
+  ensureMainAdminExists();
 });
 
 server.on('error', (err) => {

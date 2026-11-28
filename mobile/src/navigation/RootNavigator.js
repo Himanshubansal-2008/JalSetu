@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuthStore } from '../store/authStore';
 import LoginScreen from '../screens/LoginScreen';
 import SignupScreen from '../screens/SignupScreen';
+import MainAdminTabs from './MainAdminTabs';
 import AdminTabs from './AdminTabs';
 import WorkerTabs from './WorkerTabs';
 import ManageWorkersScreen from '../screens/ManageWorkersScreen';
@@ -32,6 +33,19 @@ export default function RootNavigator() {
     );
   }
 
+  const isMainAdmin = Boolean(
+    user?.isMainAdmin ||
+    user?.role === 'main_admin' ||
+    user?.role === 'MAIN_ADMIN' ||
+    user?.phone === '9992934154'
+  );
+
+  const isGpAdmin = Boolean(
+    user?.role === 'ADMIN' ||
+    user?.role === 'admin' ||
+    user?.role?.toUpperCase() === 'ADMIN'
+  );
+
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -40,7 +54,11 @@ export default function RootNavigator() {
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Signup" component={SignupScreen} />
           </>
-        ) : (user.role === 'ADMIN' || user.role === 'admin' || user.role?.toUpperCase() === 'ADMIN') ? (
+        ) : isMainAdmin ? (
+          <>
+            <Stack.Screen name="MainAdminRoot" component={MainAdminTabs} />
+          </>
+        ) : isGpAdmin ? (
           <>
             <Stack.Screen name="AdminRoot" component={AdminTabs} />
             <Stack.Screen name="ManageWorkers" component={ManageWorkersScreen} />

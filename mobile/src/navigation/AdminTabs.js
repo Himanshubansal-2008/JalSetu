@@ -15,9 +15,11 @@ const Tab = createBottomTabNavigator();
 
 export default function AdminTabs() {
   const user = useAuthStore((state) => state.user);
+  const role = (user?.role || '').toLowerCase();
+  const isMainAdmin = role === 'main_admin' || Boolean(user?.isMainAdmin);
   const isAdmin =
-    user?.role === 'ADMIN' ||
-    user?.role === 'admin' ||
+    role === 'admin' ||
+    isMainAdmin ||
     user?.role?.toUpperCase() === 'ADMIN';
 
   return (

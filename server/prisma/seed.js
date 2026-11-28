@@ -12,7 +12,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   console.log('🌱 Starting JalKosh Database Seed (forceReset: true)...\n');
-  const { gp, adminUser, workerUser } = await seedDemoGp(prisma, { forceReset: true });
+  const { gp, adminUser, workerUser, mainAdminUser } = await seedDemoGp(prisma, { forceReset: true });
 
   const totalAssetsCount = await prisma.asset.count({ where: { gpId: gp.id } });
   const faultyAssetsCount = await prisma.asset.count({ where: { gpId: gp.id, status: 'FAULTY' } });
@@ -31,8 +31,9 @@ async function main() {
   console.log(`Location       : ${gp.village}, ${gp.district}, ${gp.state}`);
   console.log('----------------------------------------------------------------');
   console.log('Credentials for Demo / Testing:');
-  console.log(`  Admin User   : Phone ${adminUser.phone}  |  Password: Admin@123`);
-  console.log(`  Worker User  : Phone ${workerUser.phone}  |  Password: Worker@123`);
+  console.log(`  Main Admin   : Phone ${mainAdminUser?.phone || '9992934154'}  |  Password: Admin@123  (Role: main_admin)`);
+  console.log(`  GP Admin     : Phone ${adminUser.phone}  |  Password: Admin@123  (Role: admin - Sarpanch)`);
+  console.log(`  Worker User  : Phone ${workerUser.phone}  |  Password: Worker@123  (Role: worker)`);
   console.log('----------------------------------------------------------------');
   console.log('Seeded Dataset Counts:');
   console.log(`  GIS Assets   : ${totalAssetsCount} (${faultyAssetsCount} faulty, ${repairAssetsCount} under repair)`);

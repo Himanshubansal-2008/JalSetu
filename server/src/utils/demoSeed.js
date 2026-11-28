@@ -6,6 +6,17 @@
 
 const bcrypt = require('bcryptjs');
 
+const MAIN_ADMIN_GP = {
+  name: 'Platform Administration (HQ)',
+  village: 'Central Headquarters',
+  block: 'Central',
+  district: 'Pune',
+  state: 'Maharashtra',
+  upiId: 'jalsetu-hq@upi',
+  openingBalance: 0,
+  isApproved: true,
+};
+
 const DEMO_GP = {
   name: 'Gram Panchayat Shirur',
   village: 'Shirur',
@@ -313,14 +324,53 @@ async function seedDemoGp(prisma, options = {}) {
   if (existingGp && !forceReset) {
     const isSeeded = await isDemoGpSeeded(prisma);
     if (isSeeded) {
+      const mainAdminPhone = (process.env.MAIN_ADMIN_PHONE || '9992934154').trim();
+
       const admin = await prisma.user.findFirst({
-        where: { gpId: existingGp.id, role: 'ADMIN', isActive: true },
+        where: {
+          gpId: existingGp.id,
+          phone: { not: mainAdminPhone },
+          role: 'ADMIN',
+          isActive: true,
+        },
       });
       const worker = await prisma.user.findFirst({
         where: { gpId: existingGp.id, role: 'WORKER', isActive: true },
       });
-      if (admin && worker) {
-        return { gp: existingGp, adminUser: admin, workerUser: worker };
+
+      let hqGp = await prisma.gramPanchayat.findFirst({ where: { name: MAIN_ADMIN_GP.name } });
+      if (!hqGp) {
+        hqGp = await prisma.gramPanchayat.create({ data: MAIN_ADMIN_GP });
+      }
+
+      let mainAdmin = await prisma.user.findUnique({
+        where: { phone: mainAdminPhone },
+        include: { gp: true },
+      });
+
+      if (!mainAdmin) {
+        const hashedPassword = await bcrypt.hash('Admin@123', 10);
+        mainAdmin = await prisma.user.create({
+          data: {
+            gpId: hqGp.id,
+            name: 'Main Administrator',
+            phone: mainAdminPhone,
+            password: hashedPassword,
+            role: 'ADMIN',
+            isActive: true,
+          },
+          include: { gp: true },
+        });
+      } else if (mainAdmin.gpId !== hqGp.id) {
+        mainAdmin = await prisma.user.update({
+          where: { id: mainAdmin.id },
+          data: { gpId: hqGp.id, role: 'ADMIN', isActive: true },
+          include: { gp: true },
+        });
+      }
+
+      if (admin && worker && mainAdmin) {
+        return { gp: existingGp, adminUser: admin, workerUser: worker, mainAdminUser: mainAdmin };
       }
     }
   }
@@ -367,6 +417,47 @@ async function seedDemoGp(prisma, options = {}) {
   }
   const adminUser = userMap.ADMIN;
   const workerUser = userMap.WORKER;
+
+  // Ensure Main Admin exists under Platform Administration (HQ) GP - strictly isolated from demo GP
+  let mainAdminGp = await prisma.gramPanchayat.findFirst({
+    where: { name: MAIN_ADMIN_GP.name },
+  });
+  if (!mainAdminGp) {
+    mainAdminGp = await prisma.gramPanchayat.create({
+      data: MAIN_ADMIN_GP,
+    });
+  }
+
+  const mainAdminPhone = (process.env.MAIN_ADMIN_PHONE || '9992934154').trim();
+  let mainAdminUser = await prisma.user.findUnique({
+    where: { phone: mainAdminPhone },
+    include: { gp: true },
+  });
+
+  const mainAdminHashedPassword = await bcrypt.hash('Admin@123', 10);
+  if (!mainAdminUser) {
+    mainAdminUser = await prisma.user.create({
+      data: {
+        gpId: mainAdminGp.id,
+        name: 'Main Administrator',
+        phone: mainAdminPhone,
+        password: mainAdminHashedPassword,
+        role: 'ADMIN',
+        isActive: true,
+      },
+      include: { gp: true },
+    });
+  } else {
+    mainAdminUser = await prisma.user.update({
+      where: { id: mainAdminUser.id },
+      data: {
+        gpId: mainAdminGp.id,
+        role: 'ADMIN',
+        isActive: true,
+      },
+      include: { gp: true },
+    });
+  }
 
   // 3. Create ~15 GIS Assets & Events
   const createdAssets = [];
@@ -653,7 +744,7 @@ async function seedDemoGp(prisma, options = {}) {
     });
   }
 
-  return { gp, adminUser, workerUser };
+  return { gp, adminUser, workerUser, mainAdminUser };
 }
 
 module.exports = {

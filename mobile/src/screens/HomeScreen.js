@@ -53,7 +53,8 @@ export default function HomeScreen({ navigation }) {
   const logout = useAuthStore((state) => state.logout);
 
   const role = (user?.role || '').toLowerCase();
-  const isAdmin = role === 'admin';
+  const isMainAdmin = role === 'main_admin' || Boolean(user?.isMainAdmin);
+  const isAdmin = role === 'admin' || isMainAdmin;
 
   // Dashboard data and UI states
   const [dashboard, setDashboard] = useState(null);

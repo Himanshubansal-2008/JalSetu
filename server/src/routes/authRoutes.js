@@ -19,6 +19,12 @@ function sign(user) {
 
 // Helper to return user object without sensitive fields
 function publicUser(user) {
+  const mainAdminPhone = (process.env.MAIN_ADMIN_PHONE || '9992934154').trim();
+  const isMainAdmin = Boolean(
+    (user.role === 'ADMIN' || user.role === 'admin') &&
+    user.phone === mainAdminPhone
+  );
+
   return {
     id: user.id,
     name: user.name,
@@ -26,6 +32,7 @@ function publicUser(user) {
     role: user.role,
     gpId: user.gpId,
     isActive: Boolean(user.isActive !== undefined ? user.isActive : user.active),
+    isMainAdmin,
   };
 }
 
@@ -139,28 +146,44 @@ router.post('/demo-login', async (req, res, next) => {
   try {
     const { role, resetData } = req.body;
 
-    const normalizedRole = typeof role === 'string' ? role.toUpperCase() : '';
-    if (normalizedRole !== 'ADMIN' && normalizedRole !== 'WORKER') {
-      return res.status(400).json({ error: 'Role must be "admin" or "worker"' });
+    const normalizedRole = typeof role === 'string' ? role.toLowerCase() : '';
+    if (normalizedRole !== 'main_admin' && normalizedRole !== 'admin' && normalizedRole !== 'worker') {
+      return res.status(400).json({ error: 'Role must be "main_admin", "admin", or "worker"' });
     }
 
     const forceReset = Boolean(resetData === true || resetData === 'true');
 
-    // Ensure demo GP is seeded with realistic dataset (or reset if requested)
-    const { gp, adminUser, workerUser } = await seedDemoGp(prisma, { forceReset });
+    // Ensure demo dataset is seeded (or reset if requested)
+    const { gp, adminUser, workerUser, mainAdminUser } = await seedDemoGp(prisma, { forceReset });
 
-    // Select the target demo user
-    let user = normalizedRole === 'ADMIN' ? adminUser : workerUser;
+    let user;
+    let userGp = gp;
 
-    // Safety fallback: fetch user directly if not in return payload
-    if (!user) {
+    const mainAdminPhone = (process.env.MAIN_ADMIN_PHONE || '9992934154').trim();
+
+    if (normalizedRole === 'main_admin') {
+      user = await prisma.user.findUnique({
+        where: { phone: mainAdminPhone },
+        include: { gp: true },
+      }) || mainAdminUser;
+      userGp = user?.gp || gp;
+    } else if (normalizedRole === 'admin') {
       user = await prisma.user.findFirst({
         where: {
           gpId: gp.id,
-          role: normalizedRole,
+          phone: { not: mainAdminPhone },
+          role: 'ADMIN',
           isActive: true,
         },
-      });
+        include: { gp: true },
+      }) || adminUser;
+      userGp = gp;
+    } else {
+      user = await prisma.user.findFirst({
+        where: { gpId: gp.id, role: 'WORKER', isActive: true },
+        include: { gp: true },
+      }) || workerUser;
+      userGp = gp;
     }
 
     if (!user) {
@@ -172,6 +195,7 @@ router.post('/demo-login', async (req, res, next) => {
       user = await prisma.user.update({
         where: { id: user.id },
         data: { isActive: true },
+        include: { gp: true },
       });
     }
 
@@ -182,9 +206,9 @@ router.post('/demo-login', async (req, res, next) => {
       token,
       user: {
         ...userPayload,
-        gp,
+        gp: userGp,
       },
-      gp,
+      gp: userGp,
     });
   } catch (err) {
     next(err);

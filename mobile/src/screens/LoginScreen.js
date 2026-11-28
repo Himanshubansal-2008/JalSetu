@@ -26,7 +26,8 @@ export default function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
 
   // Demo Login states
-  const [demoRoleLoading, setDemoRoleLoading] = useState(null); // 'admin' | 'worker' | null
+  const [demoRoleLoading, setDemoRoleLoading] = useState(null); // 'main_admin' | 'admin' | 'worker' | null
+  const [resetData, setResetData] = useState(false);
 
   const login = useAuthStore((state) => state.login);
   const demoLogin = useAuthStore((state) => state.demoLogin);
@@ -74,7 +75,7 @@ export default function LoginScreen({ navigation }) {
     setDemoRoleLoading(role);
 
     try {
-      await demoLogin({ role });
+      await demoLogin({ role, resetData });
       // Navigation switches automatically via zustand user state change in RootNavigator
     } catch (err) {
       setApiError(getErrorMessage(err));
@@ -165,24 +166,45 @@ export default function LoginScreen({ navigation }) {
             </View>
           ) : null}
 
-          {/* Demo Admin Button */}
+          {/* 1. Demo Main Admin Button */}
           <TouchableOpacity
             style={[
               styles.demoButton,
-              styles.demoAdminButton,
+              styles.demoMainAdminButton,
+              isAnyLoading && styles.disabledButton,
+            ]}
+            onPress={() => handleDemoLogin('main_admin')}
+            disabled={isAnyLoading}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Demo Main Admin"
+          >
+            <Ionicons name="shield" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Text style={styles.demoMainAdminButtonText}>
+              {demoRoleLoading === 'main_admin' ? 'Logging in Main Admin...' : (strings.demoMainAdminLogin || 'Demo Main Admin')}
+            </Text>
+          </TouchableOpacity>
+
+          {/* 2. Demo GP Admin Button */}
+          <TouchableOpacity
+            style={[
+              styles.demoButton,
+              styles.demoGpAdminButton,
               isAnyLoading && styles.disabledButton,
             ]}
             onPress={() => handleDemoLogin('admin')}
             disabled={isAnyLoading}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Demo GP Admin"
           >
             <Ionicons name="shield-checkmark" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-            <Text style={styles.demoAdminButtonText}>
-              {demoRoleLoading === 'admin' ? 'Logging in Admin...' : 'Demo Admin Login'}
+            <Text style={styles.demoGpAdminButtonText}>
+              {demoRoleLoading === 'admin' ? 'Logging in GP Admin...' : (strings.demoGpAdminLogin || 'Demo GP Admin')}
             </Text>
           </TouchableOpacity>
 
-          {/* Demo Worker Button */}
+          {/* 3. Demo Worker Button */}
           <TouchableOpacity
             style={[
               styles.demoButton,
@@ -192,10 +214,30 @@ export default function LoginScreen({ navigation }) {
             onPress={() => handleDemoLogin('worker')}
             disabled={isAnyLoading}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Demo Worker"
           >
             <Ionicons name="construct-outline" size={18} color={colors.primary} style={{ marginRight: 8 }} />
             <Text style={styles.demoWorkerButtonText}>
-              {demoRoleLoading === 'worker' ? 'Logging in Worker...' : 'Demo Worker Login'}
+              {demoRoleLoading === 'worker' ? 'Logging in Worker...' : (strings.demoWorkerLogin || 'Demo Worker')}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Reset Demo Data Toggle */}
+          <TouchableOpacity
+            style={styles.resetDataRow}
+            onPress={() => setResetData(!resetData)}
+            disabled={isAnyLoading}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={resetData ? 'checkbox' : 'square-outline'}
+              size={18}
+              color={resetData ? colors.primary : colors.muted}
+              style={{ marginRight: 8 }}
+            />
+            <Text style={[styles.resetDataText, resetData && { color: colors.primary, fontWeight: '600' }]}>
+              {strings.resetDemoDataToggle || 'Reset demo data before login'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -309,10 +351,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 10,
   },
-  demoAdminButton: {
+  demoMainAdminButton: {
+    backgroundColor: '#B45309', // amber/gold
+  },
+  demoMainAdminButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  demoGpAdminButton: {
     backgroundColor: colors.primary,
   },
-  demoAdminButtonText: {
+  demoGpAdminButtonText: {
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
@@ -326,6 +376,17 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 15,
     fontWeight: '700',
+  },
+  resetDataRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    marginTop: 4,
+  },
+  resetDataText: {
+    fontSize: 13,
+    color: colors.muted,
   },
   disabledButton: {
     opacity: 0.5,

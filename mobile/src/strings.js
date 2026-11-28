@@ -11,8 +11,10 @@ export const strings = {
   loggedInAs: 'Logged in as:',
   role: 'Role:',
   orTryDemo: 'Or explore with demo account',
-  demoAdminLogin: 'Demo Admin',
+  demoMainAdminLogin: 'Demo Main Admin',
+  demoGpAdminLogin: 'Demo GP Admin',
   demoWorkerLogin: 'Demo Worker',
+  resetDemoDataToggle: 'Reset demo data before login',
 
   // Navigation Links
   dontHaveAccount: 'New Gram Panchayat? Register',
