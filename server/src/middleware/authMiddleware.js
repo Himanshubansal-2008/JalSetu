@@ -83,9 +83,7 @@ const requireRole = (...roles) => {
   const normalized = roles.map((r) => r.toUpperCase());
   return (req, res, next) => {
     const userRole = req.user?.role?.toUpperCase();
-    const isMatch =
-      normalized.includes(userRole) ||
-      (userRole === 'SUPER_ADMIN' && normalized.includes('ADMIN'));
+    const isMatch = normalized.includes(userRole);
 
     if (!req.user || !userRole || !isMatch) {
       return res.status(403).json({ error: 'Not allowed' });

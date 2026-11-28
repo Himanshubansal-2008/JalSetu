@@ -26,6 +26,10 @@ const createInventoryItemSchema = z.object({
     .min(0, 'Quantity cannot be negative')
     .default(0)
     .optional(),
+  initialQuantity: z
+    .number({ invalid_type_error: 'Initial quantity must be a number' })
+    .min(0, 'Initial quantity cannot be negative')
+    .optional(),
   reorderLevel: z
     .number({ invalid_type_error: 'Reorder level must be a number' })
     .min(0, 'Reorder level cannot be negative')

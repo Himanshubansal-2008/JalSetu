@@ -1,30 +1,19 @@
 const express = require('express');
-const { authenticate } = require('../middleware/authMiddleware');
+const { authenticate, requireRole } = require('../middleware/authMiddleware');
 const {
   listBills,
   getDuesSummary,
   getBill,
   generateBills,
   payBill,
+  unpayBill,
 } = require('../controllers/billController');
 
 const router = express.Router();
 
-// Helper middleware: Reject non-admin users with 403 Forbidden
-function requireAdmin(req, res, next) {
-  if (!req.user) {
-    return res.status(401).json({ error: 'Not logged in' });
-  }
-  const role = req.user.role?.toLowerCase();
-  if (role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
-  next();
-}
-
-// All bill routes require authentication and admin role
+// All bill routes require authentication and GP ADMIN role
 router.use(authenticate);
-router.use(requireAdmin);
+router.use(requireRole('ADMIN'));
 
 // Dues Summary: GET /api/bills/summary (must be before /:id)
 router.get('/summary', getDuesSummary);
@@ -40,5 +29,9 @@ router.get('/:id', getBill);
 
 // Atomic Bill Payment: POST /api/bills/:id/pay
 router.post('/:id/pay', payBill);
+
+// Reverse Bill Payment: POST /api/bills/:id/unpay (or /reverse)
+router.post('/:id/unpay', unpayBill);
+router.post('/:id/reverse', unpayBill);
 
 module.exports = router;

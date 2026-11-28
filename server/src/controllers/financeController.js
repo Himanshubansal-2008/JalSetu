@@ -201,6 +201,12 @@ async function updateLedgerEntry(req, res, next) {
       });
     }
 
+    if (existing.voided) {
+      return res.status(400).json({
+        error: 'Voided ledger entries cannot be edited',
+      });
+    }
+
     const parsed = updateLedgerEntrySchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.issues[0].message });
@@ -238,9 +244,9 @@ async function updateLedgerEntry(req, res, next) {
       updateData.description = data.description ? data.description.trim() : null;
     }
 
-    // Asset validation if assetId is provided on an expense
+    // Asset validation whenever assetId is provided (on either expenses or receipts)
     if (data.assetId !== undefined) {
-      if (existing.type === 'EXPENSE' && data.assetId) {
+      if (data.assetId) {
         const asset = await prisma.asset.findFirst({
           where: {
             id: data.assetId,
@@ -252,7 +258,7 @@ async function updateLedgerEntry(req, res, next) {
         }
         updateData.assetId = data.assetId;
       } else {
-        updateData.assetId = data.assetId;
+        updateData.assetId = null;
       }
     }
 
@@ -290,7 +296,7 @@ async function updateLedgerEntry(req, res, next) {
   }
 }
 
-// Delete Entry (DELETE /api/finance/entries/:id) - Admin only
+// Soft-void Entry (DELETE /api/finance/entries/:id) - Admin only
 async function deleteLedgerEntry(req, res, next) {
   try {
     const parsedId = idParamSchema.safeParse(req.params.id);
@@ -312,19 +318,34 @@ async function deleteLedgerEntry(req, res, next) {
       return res.status(404).json({ error: 'Ledger entry not found' });
     }
 
-    // System-Entry Lock: System-generated bill payments cannot be deleted
+    // System-Entry Lock: System-generated bill payments cannot be deleted via finance route
     if (existing.isSystem) {
       return res.status(400).json({
         error: 'System-generated bill payment entries cannot be deleted',
       });
     }
 
-    await prisma.ledgerEntry.delete({
+    if (existing.voided) {
+      return res.status(400).json({
+        error: 'Ledger entry is already voided',
+      });
+    }
+
+    const voidReason = req.body?.voidReason || req.body?.reason || 'Voided by administrator';
+
+    const voidedEntry = await prisma.ledgerEntry.update({
       where: { id: existing.id },
+      data: {
+        voided: true,
+        voidedAt: new Date(),
+        voidedById: req.user.id,
+        voidReason,
+      },
     });
 
     return res.status(200).json({
-      message: 'Ledger entry deleted successfully',
+      message: 'Ledger entry voided successfully',
+      entry: voidedEntry,
     });
   } catch (err) {
     next(err);
@@ -376,12 +397,20 @@ async function getCashBook(req, res, next) {
       endDateObj = monthRange.endDate;
     }
 
-    // Opening Balance (via DB aggregate - do NOT load all prior rows into memory)
+    // 1. Fetch logged-in GP's opening balance
+    const gp = await prisma.gramPanchayat.findUnique({
+      where: { id: req.user.gpId },
+      select: { openingBalancePaise: true },
+    });
+    const baseOpeningBalancePaise = gp?.openingBalancePaise ?? 0;
+
+    // 2. Opening Balance at start of period = baseOpeningBalancePaise + prior non-voided receipts - prior non-voided expenses
     const [priorReceipts, priorExpenses] = await Promise.all([
       prisma.ledgerEntry.aggregate({
         where: {
           gpId: req.user.gpId,
           type: 'RECEIPT',
+          voided: false,
           date: { lt: startDateObj },
         },
         _sum: { amount: true },
@@ -390,6 +419,7 @@ async function getCashBook(req, res, next) {
         where: {
           gpId: req.user.gpId,
           type: 'EXPENSE',
+          voided: false,
           date: { lt: startDateObj },
         },
         _sum: { amount: true },
@@ -397,7 +427,9 @@ async function getCashBook(req, res, next) {
     ]);
 
     const openingBalancePaise =
-      (priorReceipts._sum.amount ?? 0) - (priorExpenses._sum.amount ?? 0);
+      baseOpeningBalancePaise +
+      (priorReceipts._sum.amount ?? 0) -
+      (priorExpenses._sum.amount ?? 0);
 
     // Entries in range [startDateObj, endDateObj] sorted chronologically oldest-first
     const rawEntries = await prisma.ledgerEntry.findMany({
@@ -431,18 +463,22 @@ async function getCashBook(req, res, next) {
     let totalExpensesPaise = 0;
 
     const entries = rawEntries.map((e) => {
-      if (e.type === 'RECEIPT') {
-        runningBalance += e.amount;
-        totalReceiptsPaise += e.amount;
-      } else if (e.type === 'EXPENSE') {
-        runningBalance -= e.amount;
-        totalExpensesPaise += e.amount;
+      // Exclude voided rows from balance calculations (₹0 balance impact)
+      if (!e.voided) {
+        if (e.type === 'RECEIPT') {
+          runningBalance += e.amount;
+          totalReceiptsPaise += e.amount;
+        } else if (e.type === 'EXPENSE') {
+          runningBalance -= e.amount;
+          totalExpensesPaise += e.amount;
+        }
       }
 
       return {
         ...e,
         amountPaise: e.amount,
         runningBalancePaise: runningBalance,
+        status: e.voided ? 'VOIDED' : 'ACTIVE',
         user: e.createdBy
           ? { id: e.createdBy.id, name: e.createdBy.name }
           : null,
@@ -483,11 +519,46 @@ async function getMonthlySummary(req, res, next) {
 
     const { month, startDate, endDate } = monthRange;
 
-    // Aggregation via groupBy on type and category
+    // Fetch logged-in GP's opening balance
+    const gp = await prisma.gramPanchayat.findUnique({
+      where: { id: req.user.gpId },
+      select: { openingBalancePaise: true },
+    });
+    const baseOpeningBalancePaise = gp?.openingBalancePaise ?? 0;
+
+    // Prior non-voided receipts and expenses before startDate
+    const [priorReceipts, priorExpenses] = await Promise.all([
+      prisma.ledgerEntry.aggregate({
+        where: {
+          gpId: req.user.gpId,
+          type: 'RECEIPT',
+          voided: false,
+          date: { lt: startDate },
+        },
+        _sum: { amount: true },
+      }),
+      prisma.ledgerEntry.aggregate({
+        where: {
+          gpId: req.user.gpId,
+          type: 'EXPENSE',
+          voided: false,
+          date: { lt: startDate },
+        },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    const openingBalancePaise =
+      baseOpeningBalancePaise +
+      (priorReceipts._sum.amount ?? 0) -
+      (priorExpenses._sum.amount ?? 0);
+
+    // Aggregation via groupBy on type and category for non-voided entries
     const groups = await prisma.ledgerEntry.groupBy({
       by: ['type', 'category'],
       where: {
         gpId: req.user.gpId,
+        voided: false,
         date: {
           gte: startDate,
           lte: endDate,
@@ -526,11 +597,13 @@ async function getMonthlySummary(req, res, next) {
     expenseCategories.sort((a, b) => b.amountPaise - a.amountPaise);
 
     const netBalancePaise = totalIncomePaise - totalExpensePaise;
+    const closingBalancePaise = openingBalancePaise + netBalancePaise;
 
     return res.status(200).json({
       month,
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
+      openingBalancePaise,
       income: {
         categories: incomeCategories,
         totalIncomePaise,
@@ -540,6 +613,41 @@ async function getMonthlySummary(req, res, next) {
         totalExpensePaise,
       },
       netBalancePaise,
+      closingBalancePaise,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Update GP Opening Balance (PATCH /api/gp/opening-balance) - GP Admin only
+async function updateOpeningBalance(req, res, next) {
+  try {
+    const { openingBalancePaise } = req.body;
+    if (
+      typeof openingBalancePaise !== 'number' ||
+      !Number.isInteger(openingBalancePaise) ||
+      openingBalancePaise < 0
+    ) {
+      return res.status(400).json({
+        error: 'openingBalancePaise must be an integer greater than or equal to 0',
+      });
+    }
+
+    const updatedGp = await prisma.gramPanchayat.update({
+      where: { id: req.user.gpId },
+      data: { openingBalancePaise },
+      select: {
+        id: true,
+        name: true,
+        openingBalancePaise: true,
+      },
+    });
+
+    return res.status(200).json({
+      message: 'Opening balance updated successfully',
+      openingBalancePaise: updatedGp.openingBalancePaise,
+      gp: updatedGp,
     });
   } catch (err) {
     next(err);
@@ -554,4 +662,5 @@ module.exports = {
   deleteLedgerEntry,
   getCashBook,
   getMonthlySummary,
+  updateOpeningBalance,
 };

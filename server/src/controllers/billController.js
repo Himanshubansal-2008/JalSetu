@@ -423,10 +423,85 @@ async function payBill(req, res, next) {
   }
 }
 
+/**
+ * Reverse Bill Payment (POST /api/bills/:id/unpay or /reverse) - Admin only
+ * Reverses a mistakenly paid bill inside a single prisma.$transaction:
+ * 1. Verifies bill belongs to req.user.gpId and status === 'PAID'
+ * 2. Sets bill status: 'PENDING', paidAt: null, mode: null, reference: null
+ * 3. Voids linked LedgerEntry with voided: true, voidReason: 'Bill payment reversed', voidedAt: new Date(), voidedById: req.user.id
+ */
+async function unpayBill(req, res, next) {
+  try {
+    const idParsed = idParamSchema.safeParse(req.params.id);
+    if (!idParsed.success) {
+      return res.status(400).json({ error: idParsed.error.issues[0].message });
+    }
+
+    const { id } = req.params;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const bill = await tx.bill.findFirst({
+        where: {
+          id,
+          gpId: req.user.gpId,
+        },
+      });
+
+      if (!bill) {
+        const err = new Error('Bill not found');
+        err.statusCode = 404;
+        throw err;
+      }
+
+      if (bill.status !== 'PAID') {
+        const err = new Error('Only paid bills can be reversed');
+        err.statusCode = 400;
+        throw err;
+      }
+
+      const updatedBill = await tx.bill.update({
+        where: { id: bill.id },
+        data: {
+          status: 'PENDING',
+          paidAt: null,
+          mode: null,
+          reference: null,
+        },
+      });
+
+      await tx.ledgerEntry.updateMany({
+        where: {
+          billId: bill.id,
+          gpId: req.user.gpId,
+        },
+        data: {
+          voided: true,
+          voidedAt: new Date(),
+          voidedById: req.user.id,
+          voidReason: 'Bill payment reversed',
+        },
+      });
+
+      return updatedBill;
+    });
+
+    return res.status(200).json({
+      message: 'Bill payment reversed successfully',
+      bill: result,
+    });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
+    }
+    next(err);
+  }
+}
+
 module.exports = {
   listBills,
   getDuesSummary,
   getBill,
   generateBills,
   payBill,
+  unpayBill,
 };

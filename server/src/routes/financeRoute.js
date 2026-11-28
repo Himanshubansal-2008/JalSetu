@@ -8,9 +8,13 @@ const {
   deleteLedgerEntry,
   getCashBook,
   getMonthlySummary,
+  updateOpeningBalance,
 } = require('../controllers/financeController');
 
 const router = express.Router();
+
+// Opening balance update: Admin only
+router.patch('/opening-balance', authenticate, requireRole('ADMIN'), updateOpeningBalance);
 
 // Cash Book: Admin only
 router.get('/cashbook', authenticate, requireRole('ADMIN'), getCashBook);

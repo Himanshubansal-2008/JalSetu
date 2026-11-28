@@ -12,26 +12,30 @@ const {
 
 const router = express.Router();
 
+// All inventory operations require authentication and either GP ADMIN or WORKER role
+router.use(authenticate);
+router.use(requireRole('ADMIN', 'WORKER'));
+
 // List items: accessible to both ADMIN and WORKER
-router.get('/', authenticate, listInventoryItems);
+router.get('/', listInventoryItems);
 
 // Get single item: accessible to both ADMIN and WORKER
-router.get('/:id', authenticate, getInventoryItem);
+router.get('/:id', getInventoryItem);
 
 // Create item: ADMIN only
-router.post('/', authenticate, requireRole('ADMIN'), createInventoryItem);
+router.post('/', requireRole('ADMIN'), createInventoryItem);
 
 // Stock IN: ADMIN only
-router.post('/:id/in', authenticate, requireRole('ADMIN'), stockIn);
+router.post('/:id/in', requireRole('ADMIN'), stockIn);
 
 // Stock OUT: accessible to both ADMIN and WORKER
-router.post('/:id/out', authenticate, stockOut);
+router.post('/:id/out', stockOut);
 
 // Update item: ADMIN only (supports both PUT and PATCH)
-router.put('/:id', authenticate, requireRole('ADMIN'), updateInventoryItem);
-router.patch('/:id', authenticate, requireRole('ADMIN'), updateInventoryItem);
+router.put('/:id', requireRole('ADMIN'), updateInventoryItem);
+router.patch('/:id', requireRole('ADMIN'), updateInventoryItem);
 
 // Delete item: ADMIN only
-router.delete('/:id', authenticate, requireRole('ADMIN'), deleteInventoryItem);
+router.delete('/:id', requireRole('ADMIN'), deleteInventoryItem);
 
 module.exports = router;

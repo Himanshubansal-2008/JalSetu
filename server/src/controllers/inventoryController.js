@@ -154,23 +154,45 @@ async function createInventoryItem(req, res, next) {
       return res.status(400).json({ error: parsed.error.issues[0].message });
     }
 
-    const { name, unit, quantity = 0, reorderLevel = 0 } = parsed.data;
+    const { name, unit, reorderLevel = 0 } = parsed.data;
+    const initialQuantity =
+      parsed.data.initialQuantity !== undefined
+        ? parsed.data.initialQuantity
+        : (parsed.data.quantity || 0);
 
-    const item = await prisma.inventoryItem.create({
-      data: {
-        gpId: req.user.gpId,
-        name,
-        unit,
-        quantity,
-        reorderLevel,
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      const item = await tx.inventoryItem.create({
+        data: {
+          gpId: req.user.gpId,
+          name,
+          unit,
+          quantity: initialQuantity,
+          reorderLevel,
+        },
+      });
+
+      let txn = null;
+      if (initialQuantity > 0) {
+        txn = await tx.stockTxn.create({
+          data: {
+            itemId: item.id,
+            type: 'IN',
+            quantity: initialQuantity,
+            note: 'Initial stock',
+            createdById: req.user.id,
+          },
+        });
+      }
+
+      return { item, txn };
     });
 
     return res.status(201).json({
       item: {
-        ...item,
-        isLowStock: item.quantity <= item.reorderLevel,
+        ...result.item,
+        isLowStock: result.item.quantity <= result.item.reorderLevel,
       },
+      transaction: result.txn,
     });
   } catch (err) {
     next(err);
@@ -380,32 +402,24 @@ async function stockOut(req, res, next) {
       }
     }
 
-    // Atomic Negative-Stock Guard in prisma.$transaction
-    let stockError = null;
-
+    // Atomic Negative-Stock Guard in prisma.$transaction using atomic updateMany lock
     const result = await prisma.$transaction(async (tx) => {
-      // Re-read current item within transaction isolation
-      const currentItem = await tx.inventoryItem.findUnique({
-        where: { id: existing.id },
-      });
-
-      if (!currentItem || currentItem.quantity < quantity) {
-        const availableQty = currentItem ? currentItem.quantity : existing.quantity;
-        const unit = currentItem ? currentItem.unit : existing.unit;
-        const err = new Error(`Only ${availableQty} ${unit} available`);
-        err.statusCode = 400;
-        err.isStockGuard = true;
-        throw err;
-      }
-
-      const item = await tx.inventoryItem.update({
-        where: { id: existing.id },
+      const updateResult = await tx.inventoryItem.updateMany({
+        where: {
+          id: existing.id,
+          gpId: req.user.gpId,
+          quantity: { gte: quantity },
+        },
         data: {
-          quantity: {
-            decrement: quantity,
-          },
+          quantity: { decrement: quantity },
         },
       });
+
+      if (updateResult.count === 0) {
+        const err = new Error('Insufficient stock available');
+        err.statusCode = 400;
+        throw err;
+      }
 
       const txn = await tx.stockTxn.create({
         data: {
@@ -418,29 +432,24 @@ async function stockOut(req, res, next) {
         },
       });
 
-      return { item, transaction: txn };
-    }).catch((err) => {
-      if (err.isStockGuard) {
-        stockError = err.message;
-        return null;
-      }
-      throw err;
+      const updatedItem = await tx.inventoryItem.findUnique({
+        where: { id: existing.id },
+      });
+
+      return { item: updatedItem, transaction: txn };
     });
-
-    if (stockError) {
-      return res.status(400).json({ error: stockError });
-    }
-
-    const { item: updatedItem, transaction } = result;
 
     return res.status(201).json({
       item: {
-        ...updatedItem,
-        isLowStock: updatedItem.quantity <= updatedItem.reorderLevel,
+        ...result.item,
+        isLowStock: result.item.quantity <= result.item.reorderLevel,
       },
-      transaction,
+      transaction: result.transaction,
     });
   } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
+    }
     next(err);
   }
 }

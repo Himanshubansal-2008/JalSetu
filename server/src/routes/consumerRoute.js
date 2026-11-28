@@ -1,5 +1,5 @@
 const express = require('express');
-const { authenticate } = require('../middleware/authMiddleware');
+const { authenticate, requireRole } = require('../middleware/authMiddleware');
 const {
   listConsumers,
   getConsumer,
@@ -11,21 +11,9 @@ const {
 
 const router = express.Router();
 
-// Helper middleware: Reject non-admin users with 403 Forbidden
-function requireAdmin(req, res, next) {
-  if (!req.user) {
-    return res.status(401).json({ error: 'Not logged in' });
-  }
-  const role = req.user.role?.toLowerCase();
-  if (role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
-  next();
-}
-
-// All consumer routes require authentication and admin role
+// All consumer routes require authentication and GP ADMIN role
 router.use(authenticate);
-router.use(requireAdmin);
+router.use(requireRole('ADMIN'));
 
 // List Consumers: GET /api/consumers
 router.get('/', listConsumers);

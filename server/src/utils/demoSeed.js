@@ -14,7 +14,7 @@ const MAIN_ADMIN_GP = {
   district: 'Pune',
   state: 'Maharashtra',
   upiId: 'jalsetu-hq@upi',
-  openingBalance: 0,
+  openingBalancePaise: 0,
   isApproved: true,
 };
 
@@ -25,7 +25,7 @@ const DEMO_GP = {
   district: 'Pune',
   state: 'Maharashtra',
   upiId: 'shirurgp@upi',
-  openingBalance: 5000000, // ₹50,000.00
+  openingBalancePaise: 5000000, // ₹50,000.00
   isApproved: true,
 };
 

@@ -323,10 +323,21 @@ async function deleteAsset(req, res, next) {
       return res.status(404).json({ error: 'Asset not found' });
     }
 
-    // 3. Safety check: count linked financial ledger entries and stock transactions
+    // 3. Safety check: count linked financial ledger entries and stock transactions scoped to user's GP
     const [ledgerCount, stockCount] = await Promise.all([
-      prisma.ledgerEntry.count({ where: { assetId: id } }),
-      prisma.stockTxn.count({ where: { assetId: id } }),
+      prisma.ledgerEntry.count({
+        where: {
+          assetId: id,
+          gpId: req.user.gpId,
+          voided: false,
+        },
+      }),
+      prisma.stockTxn.count({
+        where: {
+          assetId: id,
+          item: { gpId: req.user.gpId },
+        },
+      }),
     ]);
 
     if (ledgerCount > 0 || stockCount > 0) {

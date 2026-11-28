@@ -51,9 +51,9 @@ model GramPanchayat {
   block          String?
   district       String
   state          String
-  upiId          String?
-  openingBalance Int      @default(0) // paise
-  isApproved     Boolean  @default(false)
+  upiId               String?
+  openingBalancePaise Int      @default(0) @map("openingBalance") // paise
+  isApproved          Boolean  @default(false)
   createdAt      DateTime @default(now())
 
   users     User[]
@@ -158,6 +158,9 @@ model LedgerEntry {
   mode        String?    // CASH, UPI, CHEQUE
   reference   String?
   voided      Boolean    @default(false)
+  voidedAt    DateTime?
+  voidedById  String?
+  voidReason  String?
   isSystem    Boolean    @default(false)
   assetId     String?
   billId      String?    @unique

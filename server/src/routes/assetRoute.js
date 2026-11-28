@@ -11,14 +11,18 @@ const {
 
 const router = express.Router();
 
+// Asset routes require authentication and GP operational role (ADMIN or WORKER)
+router.use(authenticate);
+router.use(requireRole('ADMIN', 'WORKER'));
+
 // Asset routes open to both ADMIN and WORKER
-router.post('/', authenticate, createAsset);
-router.get('/', authenticate, listAssets);
-router.get('/:id', authenticate, getAsset);
-router.patch('/:id', authenticate, updateAsset);
-router.post('/:id/events', authenticate, addAssetEvent);
+router.post('/', createAsset);
+router.get('/', listAssets);
+router.get('/:id', getAsset);
+router.patch('/:id', updateAsset);
+router.post('/:id/events', addAssetEvent);
 
 // Admin-only delete endpoint
-router.delete('/:id', authenticate, requireRole('ADMIN'), deleteAsset);
+router.delete('/:id', requireRole('ADMIN'), deleteAsset);
 
 module.exports = router;
