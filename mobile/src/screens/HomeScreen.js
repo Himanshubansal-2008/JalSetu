@@ -201,20 +201,6 @@ export default function HomeScreen({ navigation }) {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={handleRefresh}
-              style={styles.iconButton}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="Refresh dashboard"
-            >
-              <Ionicons
-                name="sync-outline"
-                size={20}
-                color={refreshing ? colors.primary : colors.muted}
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
               onPress={handleLogout}
               style={[styles.iconButton, styles.logoutIconButton]}
               activeOpacity={0.7}

@@ -14,6 +14,7 @@ const DEMO_GP = {
   state: 'Maharashtra',
   upiId: 'shirurgp@upi',
   openingBalance: 5000000, // ₹50,000.00
+  isApproved: true,
 };
 
 const DEMO_USERS = [

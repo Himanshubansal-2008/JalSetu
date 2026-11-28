@@ -47,8 +47,8 @@ const createWorkerSchema = z.object({
   password: z.string().min(6),
 });
 
-// POST /signup (public)
-router.post('/signup', async (req, res, next) => {
+// Registration handler helper for /signup and /register
+async function handleGpRegistration(req, res, next) {
   try {
     // 1. Validate request body with Zod
     const parsed = signupSchema.safeParse(req.body);
@@ -69,7 +69,7 @@ router.post('/signup', async (req, res, next) => {
     // 3. Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 4. Create GramPanchayat and Admin User in a single transaction
+    // 4. Create GramPanchayat (isApproved: false) and Admin User (isActive: true)
     let newGp;
     let newUser;
     try {
@@ -80,6 +80,7 @@ router.post('/signup', async (req, res, next) => {
             village,
             district,
             state,
+            isApproved: false,
           },
         });
 
@@ -90,6 +91,7 @@ router.post('/signup', async (req, res, next) => {
             phone,
             password: hashedPassword,
             role: 'ADMIN',
+            isActive: true,
           },
         });
 
@@ -103,16 +105,34 @@ router.post('/signup', async (req, res, next) => {
       throw err;
     }
 
-    // 5. Generate token and return response
-    const token = sign(newUser);
+    // 5. Return 201 Created with pendingApproval: true and NO login token
     return res.status(201).json({
-      token,
-      user: publicUser(newUser),
+      pendingApproval: true,
+      gp: {
+        id: newGp.id,
+        name: newGp.name,
+        village: newGp.village,
+        district: newGp.district,
+        state: newGp.state,
+        isApproved: false,
+      },
+      user: {
+        id: newUser.id,
+        name: newUser.name,
+        phone: newUser.phone,
+        role: newUser.role,
+      },
+      message:
+        'Gram Panchayat registered successfully. Please wait for admin approval before logging in.',
     });
   } catch (err) {
     next(err);
   }
-});
+}
+
+// POST /signup and POST /register (public)
+router.post('/signup', handleGpRegistration);
+router.post('/register', handleGpRegistration);
 
 // POST /demo-login (public)
 router.post('/demo-login', async (req, res, next) => {
@@ -179,9 +199,10 @@ router.post('/login', async (req, res, next) => {
       return res.status(400).json({ error: 'Phone and password are required' });
     }
 
-    // Find user by phone
+    // Find user by phone with gp
     const user = await prisma.user.findUnique({
       where: { phone },
+      include: { gp: true },
     });
 
     // Check user existence
@@ -200,6 +221,14 @@ router.post('/login', async (req, res, next) => {
     if (!isActive) {
       return res.status(403).json({
         error: 'Account is deactivated. Contact your Gram Panchayat admin.',
+      });
+    }
+
+    // Check if Gram Panchayat is approved
+    if (!user.gp || user.gp.isApproved !== true) {
+      return res.status(403).json({
+        error:
+          'Your Gram Panchayat registration is pending approval. Please contact the administrator.',
       });
     }
 

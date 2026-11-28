@@ -91,15 +91,15 @@ export const useAuthStore = create((set, get) => ({
     return response.data;
   },
 
-  // Sign up new admin and Gram Panchayat, and persist JWT token
+  // Sign up / Register new Gram Panchayat and Admin
   signup: async (form) => {
-    const response = await apiClient.post('/auth/signup', form);
-    const { token, user } = response.data;
+    const response = await apiClient.post('/auth/register', form);
+    const { token, user, pendingApproval } = response.data;
     if (token) {
       await SecureStore.setItemAsync('token', token);
+      reset401Lock();
+      set({ user, sessionExpiredNotice: '', loading: false });
     }
-    reset401Lock();
-    set({ user, sessionExpiredNotice: '', loading: false });
     return response.data;
   },
 

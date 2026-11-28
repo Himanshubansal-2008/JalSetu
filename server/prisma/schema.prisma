@@ -52,6 +52,7 @@ model GramPanchayat {
   state          String
   upiId          String?
   openingBalance Int      @default(0) // paise
+  isApproved     Boolean  @default(false)
   createdAt      DateTime @default(now())
 
   users     User[]

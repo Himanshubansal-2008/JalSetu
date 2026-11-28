@@ -3,8 +3,9 @@ export const strings = {
 
   // Auth & General Actions
   login: 'Login',
-  signup: 'Sign Up',
-  createAccount: 'Create account',
+  signup: 'Register your Gram Panchayat',
+  createAccount: 'Register your Gram Panchayat',
+  registerGpNotice: 'New Gram Panchayats require administrator approval before first login.',
   logout: 'Logout',
   comingSoon: 'Coming soon',
   loggedInAs: 'Logged in as:',
@@ -14,8 +15,8 @@ export const strings = {
   demoWorkerLogin: 'Demo Worker',
 
   // Navigation Links
-  dontHaveAccount: "Don't have an account? Sign up",
-  alreadyHaveAccount: 'Already have an account? Log in',
+  dontHaveAccount: 'New Gram Panchayat? Register',
+  alreadyHaveAccount: 'Already registered? Log in',
 
   // Form Field Labels & Placeholders
   phoneLabel: 'Phone Number',

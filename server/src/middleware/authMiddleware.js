@@ -30,6 +30,13 @@ const authenticate = async (req, res, next) => {
         name: true,
         phone: true,
         isActive: true,
+        gp: {
+          select: {
+            id: true,
+            name: true,
+            isApproved: true,
+          },
+        },
       },
     });
 
@@ -43,6 +50,13 @@ const authenticate = async (req, res, next) => {
       });
     }
 
+    // Block authenticated requests if the user's Gram Panchayat is not approved
+    if (!dbUser.gp || dbUser.gp.isApproved !== true) {
+      return res.status(403).json({
+        error: 'Your Gram Panchayat registration is pending approval. Please contact the administrator.',
+      });
+    }
+
     req.user = {
       id: dbUser.id,
       role: dbUser.role,
@@ -50,6 +64,7 @@ const authenticate = async (req, res, next) => {
       name: dbUser.name,
       phone: dbUser.phone,
       isActive: dbUser.isActive,
+      gp: dbUser.gp,
     };
 
     next();

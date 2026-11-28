@@ -1,11 +1,21 @@
 import React, { useState } from 'react';
-import { Text, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import {
+  Text,
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Alert,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import FormField from '../components/FormField';
 import PrimaryButton from '../components/PrimaryButton';
 import { useAuthStore } from '../store/authStore';
 import { getErrorMessage } from '../api/apiClient';
 import { strings } from '../strings';
-import { colors } from '../theme';
+import { colors, tones, spacing, radius } from '../theme';
 
 export default function SignupScreen({ navigation }) {
   const [gpName, setGpName] = useState('');
@@ -54,7 +64,7 @@ export default function SignupScreen({ navigation }) {
 
     try {
       setLoading(true);
-      await signup({
+      const res = await signup({
         gpName: gpName.trim(),
         village: village.trim(),
         district: district.trim(),
@@ -63,7 +73,19 @@ export default function SignupScreen({ navigation }) {
         phone: phone.trim(),
         password,
       });
-      // Navigation switches automatically via zustand user state change in RootNavigator
+
+      if (res && res.pendingApproval) {
+        Alert.alert(
+          'Registration Submitted',
+          'Your Gram Panchayat has been registered and is awaiting admin approval before you can log in.',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.navigate('Login'),
+            },
+          ]
+        );
+      }
     } catch (err) {
       setApiError(getErrorMessage(err));
     } finally {
@@ -79,6 +101,20 @@ export default function SignupScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>{strings.appName}</Text>
         <Text style={styles.subtitle}>{strings.createAccount}</Text>
+
+        {/* Clear Notice Banner for Approval Requirement */}
+        <View style={styles.noticeBanner}>
+          <Ionicons
+            name="information-circle-outline"
+            size={18}
+            color={tones.info.fg}
+            style={{ marginRight: 8, marginTop: 1 }}
+          />
+          <Text style={styles.noticeText}>
+            {strings.registerGpNotice ||
+              'New Gram Panchayats require administrator approval before first login.'}
+          </Text>
+        </View>
 
         {apiError ? <Text style={styles.apiError}>{apiError}</Text> : null}
 
@@ -202,7 +238,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
+  },
+  noticeBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: tones.info.bg,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  noticeText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: tones.info.fg,
+    lineHeight: 18,
   },
   apiError: {
     color: colors.danger,
