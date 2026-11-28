@@ -46,12 +46,10 @@ export default function ProfileScreen({ navigation }) {
 
   const [refreshing, setRefreshing] = useState(false);
   const [pendingGps, setPendingGps] = useState([]);
-  const [loadingPendingGps, setLoadingPendingGps] = useState(false);
   const [approvingId, setApprovingId] = useState(null);
 
   // All GPs live activity monitor (Main Admin only)
   const [allGps, setAllGps] = useState([]);
-  const [loadingAllGps, setLoadingAllGps] = useState(false);
 
   // Reject / Decline modal state
   const [rejectModalVisible, setRejectModalVisible] = useState(false);

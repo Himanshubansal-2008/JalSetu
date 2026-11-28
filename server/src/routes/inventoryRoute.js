@@ -1,5 +1,5 @@
 const express = require('express');
-const { authenticate, requireRole } = require('../middleware/authMiddleware');
+const { authenticate, requireRole, requireAdmin } = require('../middleware/authMiddleware');
 const {
   listInventoryItems,
   getInventoryItem,
@@ -23,19 +23,19 @@ router.get('/', listInventoryItems);
 router.get('/:id', getInventoryItem);
 
 // Create item: ADMIN only
-router.post('/', requireRole('ADMIN'), createInventoryItem);
+router.post('/', requireAdmin, createInventoryItem);
 
 // Stock IN: ADMIN only
-router.post('/:id/in', requireRole('ADMIN'), stockIn);
+router.post('/:id/in', requireAdmin, stockIn);
 
 // Stock OUT: accessible to both ADMIN and WORKER
 router.post('/:id/out', stockOut);
 
 // Update item: ADMIN only (supports both PUT and PATCH)
-router.put('/:id', requireRole('ADMIN'), updateInventoryItem);
-router.patch('/:id', requireRole('ADMIN'), updateInventoryItem);
+router.put('/:id', requireAdmin, updateInventoryItem);
+router.patch('/:id', requireAdmin, updateInventoryItem);
 
 // Delete item: ADMIN only
-router.delete('/:id', requireRole('ADMIN'), deleteInventoryItem);
+router.delete('/:id', requireAdmin, deleteInventoryItem);
 
 module.exports = router;

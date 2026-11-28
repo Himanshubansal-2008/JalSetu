@@ -1,5 +1,5 @@
 const express = require('express');
-const { authenticate, requireRole } = require('../middleware/authMiddleware');
+const { authenticate, requireAdmin } = require('../middleware/authMiddleware');
 const {
   addReceipt,
   addExpense,
@@ -13,29 +13,33 @@ const {
 
 const router = express.Router();
 
+// All finance routes require authentication and GP ADMIN role
+router.use(authenticate);
+router.use(requireAdmin);
+
 // Opening balance update: Admin only
-router.patch('/opening-balance', authenticate, requireRole('ADMIN'), updateOpeningBalance);
+router.patch('/opening-balance', updateOpeningBalance);
 
 // Cash Book: Admin only
-router.get('/cashbook', authenticate, requireRole('ADMIN'), getCashBook);
+router.get('/cashbook', getCashBook);
 
 // Monthly Summary: Admin only
-router.get('/summary', authenticate, requireRole('ADMIN'), getMonthlySummary);
+router.get('/summary', getMonthlySummary);
 
 // Add Receipt: Admin only
-router.post('/receipts', authenticate, requireRole('ADMIN'), addReceipt);
+router.post('/receipts', addReceipt);
 
 // Add Expense: Admin only
-router.post('/expenses', authenticate, requireRole('ADMIN'), addExpense);
+router.post('/expenses', addExpense);
 
 // List Entries: Admin only
-router.get('/entries', authenticate, requireRole('ADMIN'), listLedgerEntries);
+router.get('/entries', listLedgerEntries);
 
 // Edit Entry: Admin only (supports both PUT and PATCH)
-router.put('/entries/:id', authenticate, requireRole('ADMIN'), updateLedgerEntry);
-router.patch('/entries/:id', authenticate, requireRole('ADMIN'), updateLedgerEntry);
+router.put('/entries/:id', updateLedgerEntry);
+router.patch('/entries/:id', updateLedgerEntry);
 
 // Delete Entry: Admin only
-router.delete('/entries/:id', authenticate, requireRole('ADMIN'), deleteLedgerEntry);
+router.delete('/entries/:id', deleteLedgerEntry);
 
 module.exports = router;

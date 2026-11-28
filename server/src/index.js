@@ -121,7 +121,9 @@ const { ensureMainAdminExists } = require('./utils/mainAdmin');
 const PORT = process.env.PORT || 4000;
 const server = app.listen(PORT, () => {
   console.log(`JalSetu server running on port ${PORT}`);
-  ensureMainAdminExists();
+  if (process.env.RUN_SUPER_ADMIN_BOOTSTRAP === 'true') {
+    ensureMainAdminExists();
+  }
 });
 
 server.on('error', (err) => {

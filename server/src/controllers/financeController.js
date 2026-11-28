@@ -41,9 +41,10 @@ async function addReceipt(req, res, next) {
       },
     });
 
+    const { amount, ...cleanEntry } = entry;
     return res.status(201).json({
       entry: {
-        ...entry,
+        ...cleanEntry,
         amountPaise: entry.amount,
       },
     });
@@ -93,9 +94,10 @@ async function addExpense(req, res, next) {
       },
     });
 
+    const { amount, ...cleanEntry } = entry;
     return res.status(201).json({
       entry: {
-        ...entry,
+        ...cleanEntry,
         amountPaise: entry.amount,
       },
     });
@@ -156,13 +158,16 @@ async function listLedgerEntries(req, res, next) {
       },
     });
 
-    const entries = rawEntries.map((e) => ({
-      ...e,
-      amountPaise: e.amount,
-      user: e.createdBy
-        ? { id: e.createdBy.id, name: e.createdBy.name }
-        : null,
-    }));
+    const entries = rawEntries.map((e) => {
+      const { amount, ...cleanE } = e;
+      return {
+        ...cleanE,
+        amountPaise: e.amount,
+        user: e.createdBy
+          ? { id: e.createdBy.id, name: e.createdBy.name }
+          : null,
+      };
+    });
 
     return res.status(200).json({
       entries,
@@ -283,9 +288,10 @@ async function updateLedgerEntry(req, res, next) {
       },
     });
 
+    const { amount, ...cleanUpdated } = updated;
     return res.status(200).json({
       entry: {
-        ...updated,
+        ...cleanUpdated,
         amountPaise: updated.amount,
         user: updated.createdBy
           ? { id: updated.createdBy.id, name: updated.createdBy.name }
@@ -475,8 +481,9 @@ async function getCashBook(req, res, next) {
         }
       }
 
+      const { amount, ...cleanE } = e;
       return {
-        ...e,
+        ...cleanE,
         amountPaise: e.amount,
         runningBalancePaise: runningBalance,
         status: e.voided ? 'VOIDED' : 'ACTIVE',

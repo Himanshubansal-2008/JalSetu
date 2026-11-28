@@ -4,7 +4,7 @@
  * prominent total dues / all clear summary card, and chronological billing history.
  */
 
-import React, { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
+import React, { useState, useLayoutEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -70,7 +70,6 @@ export default function ConsumerDetailScreen({ route, navigation }) {
   const [loading, setLoading] = useState(!initialConsumer);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
-  const [payingBillId, setPayingBillId] = useState(null);
   const [unpayingBillId, setUnpayingBillId] = useState(null);
   const [selectedBillForPay, setSelectedBillForPay] = useState(null);
   const [payModalVisible, setPayModalVisible] = useState(false);
@@ -170,19 +169,6 @@ export default function ConsumerDetailScreen({ route, navigation }) {
       });
     } finally {
       setSharingPdfBillId(null);
-    }
-  };
-
-  const submitPayment = async (billId, mode) => {
-    setPayingBillId(billId);
-    try {
-      await apiClient.post(`/bills/${billId}/pay`, { mode });
-      // Re-fetch consumer to update dues and billing history
-      await fetchConsumer({ isRefresh: true });
-    } catch (err) {
-      Alert.alert('Payment Failed', getErrorMessage(err));
-    } finally {
-      setPayingBillId(null);
     }
   };
 
@@ -416,7 +402,6 @@ export default function ConsumerDetailScreen({ route, navigation }) {
           ) : (
             bills.map((bill) => {
               const isPaid = bill.status === 'PAID';
-              const isPaying = payingBillId === bill.id;
 
               return (
                 <View
@@ -559,26 +544,19 @@ export default function ConsumerDetailScreen({ route, navigation }) {
                             <TouchableOpacity
                               style={styles.payNowBtn}
                               onPress={() => handlePayNow(bill)}
-                              disabled={isPaying}
                               activeOpacity={0.8}
                               accessibilityRole="button"
                               accessibilityLabel={`${strings.payNow} for ${bill.month}`}
                             >
-                              {isPaying ? (
-                                <ActivityIndicator size="small" color={colors.white} />
-                              ) : (
-                                <>
-                                  <Ionicons
-                                    name="wallet-outline"
-                                    size={13}
-                                    color={colors.white}
-                                    style={{ marginRight: 4 }}
-                                  />
-                                  <Text style={styles.payNowBtnText}>
-                                    {strings.payNow}
-                                  </Text>
-                                </>
-                              )}
+                              <Ionicons
+                                name="wallet-outline"
+                                size={13}
+                                color={colors.white}
+                                style={{ marginRight: 4 }}
+                              />
+                              <Text style={styles.payNowBtnText}>
+                                {strings.payNow}
+                              </Text>
                             </TouchableOpacity>
                           ) : null}
                         </View>
@@ -903,11 +881,6 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xs,
     borderTopWidth: 1,
     borderTopColor: '#F8FAFC',
-  },
-  paidStatusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
   },
   paidInfoRow: {
     flexDirection: 'row',

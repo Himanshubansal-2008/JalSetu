@@ -8,7 +8,6 @@ import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
@@ -472,30 +471,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: tones.warning.fg,
     marginRight: 2,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    height: 44,
-  },
-  searchIcon: {
-    marginRight: spacing.sm,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: colors.text,
-    paddingVertical: 0,
-  },
-  clearSearchButton: {
-    padding: spacing.xs,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   filterRow: {
     flexDirection: 'row',

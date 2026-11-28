@@ -146,7 +146,6 @@ async function getInventoryItem(req, res, next) {
         reorderLevel: item.reorderLevel,
         createdAt: item.createdAt,
         isLowStock: item.quantity <= item.reorderLevel,
-        txns: transactions,
         transactions,
       },
     });

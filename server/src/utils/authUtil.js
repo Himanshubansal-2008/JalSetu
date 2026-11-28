@@ -20,11 +20,18 @@ function signToken(user, expiresIn = '12h') {
 }
 
 /**
+ * Shared helper to check if a user is a platform Super Administrator.
+ */
+function isSuperAdmin(user) {
+  return user?.role === 'SUPER_ADMIN';
+}
+
+/**
  * Formats a user object for API responses, removing sensitive fields
  * and computing platform-level flags based strictly on schema role.
  */
 function publicUser(user) {
-  const isSuperAdmin = user.role === 'SUPER_ADMIN';
+  const superAdminFlag = isSuperAdmin(user);
 
   return {
     id: user.id,
@@ -32,9 +39,9 @@ function publicUser(user) {
     phone: user.phone,
     role: user.role,
     gpId: user.gpId,
-    isActive: Boolean(user.isActive !== undefined ? user.isActive : user.active),
-    isSuperAdmin,
-    isMainAdmin: isSuperAdmin,
+    isActive: Boolean(user.isActive),
+    isSuperAdmin: superAdminFlag,
+    isMainAdmin: superAdminFlag,
   };
 }
 
@@ -63,6 +70,7 @@ const changePasswordSchema = z.object({
 });
 
 module.exports = {
+  isSuperAdmin,
   signToken,
   publicUser,
   signupSchema,

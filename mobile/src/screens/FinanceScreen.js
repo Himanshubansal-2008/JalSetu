@@ -6,7 +6,7 @@
  * category breakdown preview, and error/refresh handling.
  */
 
-import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
+import React, { useState, useRef, useCallback, useLayoutEffect } from 'react';
 import {
   View,
   Text,

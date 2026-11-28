@@ -17,7 +17,7 @@ import MainAdminOverviewScreen from '../screens/MainAdminOverviewScreen';
 import MainAdminApprovalsScreen from '../screens/MainAdminApprovalsScreen';
 import MainAdminPanchayatsScreen from '../screens/MainAdminPanchayatsScreen';
 import MainAdminProfileScreen from '../screens/MainAdminProfileScreen';
-import { colors, tones } from '../theme';
+import { colors } from '../theme';
 
 const Tab = createBottomTabNavigator();
 

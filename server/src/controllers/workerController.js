@@ -64,8 +64,7 @@ async function listWorkers(req, res, next) {
       totalPages,
     });
   } catch (err) {
-    console.error('Error listing workers:', err);
-    return res.status(500).json({ error: 'Failed to list workers' });
+    next(err);
   }
 }
 
@@ -146,8 +145,7 @@ async function createWorker(req, res, next) {
     if (err.code === 'P2002') {
       return res.status(409).json({ error: 'Phone already registered' });
     }
-    console.error('Error creating worker:', err);
-    return res.status(500).json({ error: 'Failed to create worker' });
+    next(err);
   }
 }
 
@@ -205,8 +203,7 @@ async function updateWorkerStatus(req, res, next) {
       worker: updatedWorker,
     });
   } catch (err) {
-    console.error('Error updating worker status:', err);
-    return res.status(500).json({ error: 'Failed to update worker status' });
+    next(err);
   }
 }
 
@@ -264,8 +261,7 @@ async function resetWorkerPassword(req, res, next) {
       worker: updatedWorker,
     });
   } catch (err) {
-    console.error('Error resetting worker password:', err);
-    return res.status(500).json({ error: 'Failed to reset worker password' });
+    next(err);
   }
 }
 

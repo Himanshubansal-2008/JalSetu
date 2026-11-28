@@ -8,7 +8,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
@@ -22,7 +21,6 @@ import ChipSelector from '../components/ChipSelector';
 import ListCard from '../components/ListCard';
 import EmptyState from '../components/EmptyState';
 import SearchBar from '../components/SearchBar';
-import ErrorBanner from '../components/ErrorBanner';
 import {
   ASSET_TYPES,
   ASSET_STATUSES,
@@ -391,33 +389,6 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     paddingHorizontal: spacing.lg,
     backgroundColor: colors.background,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.xs,
-  },
-  searchIcon: {
-    marginRight: spacing.sm,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: colors.text,
-    minHeight: 44,
-    paddingVertical: 0,
-  },
-  clearSearchButton: {
-    minHeight: 44,
-    minWidth: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   chipsWrapper: {
     marginTop: spacing.xs,

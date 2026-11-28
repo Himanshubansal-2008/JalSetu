@@ -16,7 +16,6 @@ import {
   View,
   Text,
   FlatList,
-  TextInput,
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
@@ -117,7 +116,6 @@ export default function BillsScreen({ navigation, route }) {
 
   // Action states
   const [generating, setGenerating] = useState(false);
-  const [payingBillId, setPayingBillId] = useState(null);
   const [unpayingBillId, setUnpayingBillId] = useState(null);
   const [selectedBillForPay, setSelectedBillForPay] = useState(null);
   const [payModalVisible, setPayModalVisible] = useState(false);
@@ -248,19 +246,6 @@ export default function BillsScreen({ navigation, route }) {
     setPayModalVisible(true);
   };
 
-  const executePayBill = async (billId, mode) => {
-    setPayingBillId(billId);
-    try {
-      await apiClient.post(`/bills/${billId}/pay`, { mode });
-      // Refresh list and summary immediately
-      await fetchData({ isRefresh: true });
-    } catch (err) {
-      Alert.alert('Payment Failed', getErrorMessage(err));
-    } finally {
-      setPayingBillId(null);
-    }
-  };
-
   // Reverse Payment Action for Paid Bill
   const handleUnpayBill = (bill) => {
     if (!isAdmin) return;
@@ -306,7 +291,6 @@ export default function BillsScreen({ navigation, route }) {
   // Render Bill Card
   const renderBillCard = ({ item }) => {
     const isPaid = item.status === 'PAID';
-    const isPaying = payingBillId === item.id;
 
     return (
       <View
@@ -450,26 +434,19 @@ export default function BillsScreen({ navigation, route }) {
                   <TouchableOpacity
                     style={styles.payBtn}
                     onPress={() => handlePayBill(item)}
-                    disabled={isPaying}
                     activeOpacity={0.8}
                     accessibilityRole="button"
                     accessibilityLabel={strings.recordPayment || 'Record Payment'}
                   >
-                    {isPaying ? (
-                      <ActivityIndicator size="small" color={colors.white} />
-                    ) : (
-                      <>
-                        <Ionicons
-                          name="wallet-outline"
-                          size={14}
-                          color={colors.white}
-                          style={{ marginRight: 4 }}
-                        />
-                        <Text style={styles.payBtnText}>
-                          {strings.recordPayment || 'Record Payment'}
-                        </Text>
-                      </>
-                    )}
+                    <Ionicons
+                      name="wallet-outline"
+                      size={14}
+                      color={colors.white}
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text style={styles.payBtnText}>
+                      {strings.recordPayment || 'Record Payment'}
+                    </Text>
                   </TouchableOpacity>
                 ) : null}
               </View>
@@ -750,33 +727,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  summaryCard: {
-    flex: 1,
-    backgroundColor: colors.background,
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.xs + 2,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  summaryCardLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.muted,
-    marginBottom: 2,
-    textTransform: 'uppercase',
-  },
-  summaryCardAmount: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: colors.text,
-  },
-  summaryCardSubtitle: {
-    fontSize: 10,
-    color: colors.muted,
-    marginTop: 2,
-  },
   generateButtonSection: {
     backgroundColor: colors.white,
     paddingHorizontal: spacing.md,
@@ -808,23 +758,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.sm,
-    height: 38,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.xs + 2,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.text,
-    paddingVertical: 0,
-  },
   chipsRow: {
     flexDirection: 'row',
     gap: spacing.xs + 2,
@@ -848,33 +781,6 @@ const styles = StyleSheet.create({
     color: colors.muted,
   },
   filterChipTextSelected: {
-    color: colors.white,
-  },
-  errorBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: tones.danger.bg,
-    padding: spacing.md,
-    margin: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.danger,
-  },
-  errorText: {
-    flex: 1,
-    fontSize: 13,
-    color: tones.danger.fg,
-    fontWeight: '600',
-  },
-  retryButton: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    backgroundColor: colors.danger,
-    borderRadius: radius.sm,
-  },
-  retryButtonText: {
-    fontSize: 11,
-    fontWeight: '700',
     color: colors.white,
   },
   listContent: {

@@ -1,5 +1,5 @@
 /**
- * HomeScreen.js (DashboardScreen)
+ * HomeScreen.js
  * Role-aware Home Dashboard for the JalSetu mobile app powered by GET /api/dashboard.
  *
  * Scoped strictly to the logged-in user's Gram Panchayat.
@@ -1205,9 +1205,6 @@ export default function HomeScreen({ navigation }) {
     </SafeAreaView>
   );
 }
-
-// Re-export DashboardScreen alias
-export { HomeScreen as DashboardScreen };
 
 const styles = StyleSheet.create({
   safeArea: {

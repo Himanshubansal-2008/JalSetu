@@ -1,5 +1,5 @@
 const express = require('express');
-const { authenticate, requireRole } = require('../middleware/authMiddleware');
+const { authenticate, requireAdmin } = require('../middleware/authMiddleware');
 const {
   listConsumers,
   getConsumer,
@@ -13,7 +13,7 @@ const router = express.Router();
 
 // All consumer routes require authentication and GP ADMIN role
 router.use(authenticate);
-router.use(requireRole('ADMIN'));
+router.use(requireAdmin);
 
 // List Consumers: GET /api/consumers
 router.get('/', listConsumers);

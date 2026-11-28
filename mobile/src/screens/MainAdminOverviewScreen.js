@@ -5,14 +5,13 @@
  * and high-priority Gram Panchayat alerts.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  ActivityIndicator,
   StyleSheet,
   SafeAreaView,
   StatusBar,
@@ -31,7 +30,6 @@ import { colors, tones, spacing, radius } from '../theme';
 export default function MainAdminOverviewScreen({ navigation }) {
   const user = useAuthStore((state) => state.user);
 
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [overviewData, setOverviewData] = useState(null);
@@ -46,8 +44,6 @@ export default function MainAdminOverviewScreen({ navigation }) {
   const fetchOverview = useCallback(async ({ isRefresh = false } = {}) => {
     if (isRefresh) {
       setRefreshing(true);
-    } else if (!overviewData) {
-      setLoading(true);
     }
     setError('');
 
@@ -57,10 +53,9 @@ export default function MainAdminOverviewScreen({ navigation }) {
     } catch (err) {
       setError(getErrorMessage(err, 'Failed to fetch platform overview'));
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
-  }, [overviewData]);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {

@@ -91,9 +91,37 @@ export function rupeesInputToPaise(rupeeText) {
   return Math.round(num * 100);
 }
 
+/**
+ * Converts integer paise into a plain rupee string without formatting (e.g. 15000 -> "150", 15050 -> "150.50").
+ * Useful for pre-filling text inputs.
+ *
+ * @param {number|string|null|undefined} paise
+ * @returns {string}
+ */
+export function paiseToRupees(paise) {
+  if (paise === null || paise === undefined || paise === '') return '';
+  const num = Number(paise);
+  if (isNaN(num)) return '';
+
+  const whole = Math.floor(num / 100);
+  const remainder = num % 100;
+
+  if (remainder === 0) {
+    return String(whole);
+  }
+
+  return `${whole}.${String(remainder).padStart(2, '0')}`;
+}
+
+export const rupeesToPaise = rupeesInputToPaise;
+export const formatRupees = formatPaiseToRupees;
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     formatPaiseToRupees,
     rupeesInputToPaise,
+    paiseToRupees,
+    rupeesToPaise,
+    formatRupees,
   };
 }

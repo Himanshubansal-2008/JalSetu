@@ -104,3 +104,20 @@ module.exports = {
   ensureSuperAdminExists,
   ensureMainAdminExists: ensureSuperAdminExists,
 };
+
+if (require.main === module) {
+  require('dotenv').config();
+  ensureSuperAdminExists()
+    .then(async (user) => {
+      await prisma.$disconnect();
+      if (!user && (process.env.MAIN_ADMIN_PHONE || process.env.MAIN_ADMIN_PASSWORD)) {
+        process.exit(1);
+      }
+      process.exit(0);
+    })
+    .catch(async (err) => {
+      console.error('[MainAdmin] Fatal bootstrap error:', err);
+      await prisma.$disconnect();
+      process.exit(1);
+    });
+}

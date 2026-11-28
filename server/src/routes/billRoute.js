@@ -1,5 +1,5 @@
 const express = require('express');
-const { authenticate, requireRole } = require('../middleware/authMiddleware');
+const { authenticate, requireAdmin } = require('../middleware/authMiddleware');
 const {
   listBills,
   getDuesSummary,
@@ -16,7 +16,7 @@ const router = express.Router();
 
 // All bill routes require authentication and GP ADMIN role
 router.use(authenticate);
-router.use(requireRole('ADMIN'));
+router.use(requireAdmin);
 
 // Dues Summary: GET /api/bills/summary (must be before /:id)
 router.get('/summary', getDuesSummary);

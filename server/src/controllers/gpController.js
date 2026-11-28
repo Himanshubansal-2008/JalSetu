@@ -61,7 +61,7 @@ async function getOverview(req, res, next) {
       }),
       prisma.bill.groupBy({
         by: ['gpId'],
-        where: { status: { in: ['PENDING', 'DUE'] } },
+        where: { status: 'PENDING' },
         _count: { id: true },
       }),
       prisma.inventoryItem.findMany({
@@ -300,7 +300,7 @@ async function getGpById(req, res, next) {
 
     const paidBills = gp.bills.filter((b) => b.status === 'PAID');
     const totalCollectedPaise = paidBills.reduce((acc, b) => acc + (b.amountPaise || 0), 0);
-    const pendingBillsCount = gp.bills.filter((b) => b.status === 'PENDING' || b.status === 'DUE').length;
+    const pendingBillsCount = gp.bills.filter((b) => b.status === 'PENDING').length;
 
     const detailedGp = {
       id: gp.id,

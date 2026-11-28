@@ -18,7 +18,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Callout } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
-import apiClient, { getErrorMessage } from '../api/apiClient';
+import apiClient from '../api/apiClient';
 import { useAuthStore } from '../store/authStore';
 import StatusBadge from '../components/StatusBadge';
 import PrimaryButton from '../components/PrimaryButton';
@@ -85,7 +85,6 @@ export default function AssetMapScreen({ navigation }) {
   const [assets, setAssets] = useState([]);
   const [selectedType, setSelectedType] = useState('ALL');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [selectedAsset, setSelectedAsset] = useState(null);
 
   const mapRef = useRef(null);
@@ -101,7 +100,6 @@ export default function AssetMapScreen({ navigation }) {
   const fetchAssets = async () => {
     const currentReqId = ++requestIdRef.current;
     setLoading(true);
-    setError('');
 
     try {
       const response = await apiClient.get('/assets?limit=100');
@@ -141,7 +139,6 @@ export default function AssetMapScreen({ navigation }) {
         useAuthStore.getState().logout();
         return;
       }
-      setError(getErrorMessage(err));
     } finally {
       if (currentReqId === requestIdRef.current) {
         setLoading(false);

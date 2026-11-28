@@ -38,8 +38,7 @@ import {
   getMarkerColor,
 } from '../utils/assetUtil';
 import { ATTRIBUTE_FIELDS } from '../utils/assetFormUtil';
-import { formatRupees } from '../utils/moneyUtil';
-import { formatPaiseToRupees } from '../utils/currency';
+import { formatRupees, formatPaiseToRupees } from '../utils/currency';
 import {
   formatDisplay,
   formatDateTime,
@@ -375,7 +374,7 @@ export default function AssetDetailScreen({ route, navigation }) {
   });
   const eventCount = events.length;
 
-  const heroPhotoUrl = asset.photoUrl || asset.photo;
+  const heroPhotoUrl = asset.photoUrl;
 
   // Linked finance expenses & total spent
   const expenses = Array.isArray(asset.expenses) ? asset.expenses : [];
@@ -767,7 +766,7 @@ export default function AssetDetailScreen({ route, navigation }) {
                   dateTime={eventDateStr}
                   note={formattedNote}
                   author={authorName}
-                  photoUrl={event.photoUrl || event.photo}
+                  photoUrl={event.photoUrl}
                   isLast={index === events.length - 1}
                 />
               );

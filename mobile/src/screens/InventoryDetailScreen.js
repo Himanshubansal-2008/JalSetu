@@ -59,7 +59,7 @@ export default function InventoryDetailScreen({ route, navigation }) {
     };
   }, []);
 
-  const transactions = item?.transactions || item?.txns || [];
+  const transactions = item?.transactions || [];
   const hasHistory = transactions.length > 0;
   const isLowStock =
     Boolean(item?.isLowStock) ||

@@ -1,5 +1,5 @@
 const express = require('express');
-const { authenticate } = require('../middleware/authMiddleware');
+const { authenticate, isSuperAdmin } = require('../middleware/authMiddleware');
 const {
   getOverview,
   getPendingGps,
@@ -26,7 +26,7 @@ const requireSuperAdminOrKey = async (req, res, next) => {
 
   // Otherwise authenticate strictly via valid JWT belonging to Super Admin
   return authenticate(req, res, () => {
-    if (req.user && req.user.role === 'SUPER_ADMIN') {
+    if (isSuperAdmin(req.user)) {
       return next();
     }
     return res.status(403).json({

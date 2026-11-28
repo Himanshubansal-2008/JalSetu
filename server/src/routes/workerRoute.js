@@ -1,5 +1,5 @@
 const express = require('express');
-const { authenticate, requireRole } = require('../middleware/authMiddleware');
+const { authenticate, requireAdmin } = require('../middleware/authMiddleware');
 const {
   listWorkers,
   createWorker,
@@ -11,7 +11,7 @@ const router = express.Router();
 
 // All worker management routes require authentication and ADMIN role
 router.use(authenticate);
-router.use(requireRole('ADMIN'));
+router.use(requireAdmin);
 
 // GET /api/workers - List workers for current GP
 router.get('/', listWorkers);

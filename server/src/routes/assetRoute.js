@@ -1,5 +1,5 @@
 const express = require('express');
-const { authenticate, requireRole } = require('../middleware/authMiddleware');
+const { authenticate, requireRole, requireAdmin } = require('../middleware/authMiddleware');
 const {
   createAsset,
   listAssets,
@@ -23,6 +23,6 @@ router.patch('/:id', updateAsset);
 router.post('/:id/events', addAssetEvent);
 
 // Admin-only delete endpoint
-router.delete('/:id', requireRole('ADMIN'), deleteAsset);
+router.delete('/:id', requireAdmin, deleteAsset);
 
 module.exports = router;

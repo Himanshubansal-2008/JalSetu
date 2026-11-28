@@ -9,7 +9,7 @@
  * - Pull-to-refresh, useFocusEffect, error handling with retry, and non-admin route guard
  */
 
-import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
+import React, { useState, useRef, useCallback, useLayoutEffect } from 'react';
 import {
   View,
   Text,

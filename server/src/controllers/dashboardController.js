@@ -202,8 +202,7 @@ async function getDashboard(req, res, next) {
       },
     });
   } catch (err) {
-    console.error('Error fetching dashboard metrics:', err);
-    return res.status(500).json({ error: 'Failed to fetch dashboard metrics' });
+    next(err);
   }
 }
 

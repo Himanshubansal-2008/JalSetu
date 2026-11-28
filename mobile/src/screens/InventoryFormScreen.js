@@ -257,7 +257,7 @@ export default function InventoryFormScreen({ route, navigation }) {
   };
 
   // Check if item has transactions
-  const txns = loadedItem?.transactions || loadedItem?.txns || [];
+  const txns = loadedItem?.transactions || [];
   const hasHistory = txns.length > 0;
 
   // Perform delete operation

@@ -4,7 +4,7 @@
  * Pure helper without UI or React Native dependencies.
  */
 
-import { rupeesToPaise, paiseToRupees } from './moneyUtil.js';
+import { rupeesToPaise, paiseToRupees } from './currency';
 import { isoToDateString } from './dateUtil.js';
 
 export const ATTRIBUTE_FIELDS = {
@@ -78,7 +78,7 @@ export function assetToForm(asset) {
     cost: paiseToRupees(asset.cost),
     notes: asset.notes || '',
     statusNote: '',
-    photoUrl: asset.photoUrl || asset.photo || '',
+    photoUrl: asset.photoUrl || '',
     attributes: attrs,
   };
 }

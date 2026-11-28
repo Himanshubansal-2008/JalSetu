@@ -56,10 +56,11 @@ async function createAsset(req, res, next) {
       select: assetSelectStandard,
     });
 
+    const { photo, ...cleanAsset } = asset;
     return res.status(201).json({
       asset: {
-        ...asset,
-        photoUrl: asset.photo || null,
+        ...cleanAsset,
+        photoUrl: photo || null,
       },
     });
   } catch (err) {
@@ -104,10 +105,13 @@ async function listAssets(req, res, next) {
       prisma.asset.count({ where }),
     ]);
 
-    const assets = rawAssets.map((a) => ({
-      ...a,
-      photoUrl: a.photo || null,
-    }));
+    const assets = rawAssets.map((a) => {
+      const { photo, ...cleanA } = a;
+      return {
+        ...cleanA,
+        photoUrl: photo || null,
+      };
+    });
 
     return res.status(200).json({
       assets,
@@ -209,10 +213,11 @@ async function getAsset(req, res, next) {
       };
     });
 
+    const { photo, ...cleanAsset } = asset;
     return res.status(200).json({
       asset: {
-        ...asset,
-        photoUrl: asset.photo,
+        ...cleanAsset,
+        photoUrl: photo || null,
         latitude: asset.lat,
         longitude: asset.lng,
         events,
@@ -318,10 +323,11 @@ async function updateAsset(req, res, next) {
       return [asset];
     });
 
+    const { photo, ...cleanUpdated } = updatedAsset;
     return res.status(200).json({
       asset: {
-        ...updatedAsset,
-        photoUrl: updatedAsset.photo || null,
+        ...cleanUpdated,
+        photoUrl: photo || null,
       },
     });
   } catch (err) {
@@ -449,10 +455,11 @@ async function addAssetEvent(req, res, next) {
       },
     });
 
+    const { photo, ...cleanEvent } = event;
     return res.status(201).json({
       event: {
-        ...event,
-        photoUrl: event.photo,
+        ...cleanEvent,
+        photoUrl: photo,
         timestamp: event.createdAt,
         authorName: event.createdBy ? event.createdBy.name : null,
       },

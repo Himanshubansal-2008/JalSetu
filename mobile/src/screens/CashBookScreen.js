@@ -4,7 +4,7 @@
  * opening balance card, running balance progression on each row, and closing balance totals.
  */
 
-import React, { useState, useEffect, useRef, useCallback, useLayoutEffect, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useLayoutEffect } from 'react';
 import {
   View,
   Text,

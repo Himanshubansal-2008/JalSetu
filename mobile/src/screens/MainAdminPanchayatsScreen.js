@@ -12,9 +12,6 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
-  ActivityIndicator,
-  Modal,
-  ScrollView,
   StyleSheet,
   SafeAreaView,
   StatusBar,
@@ -414,72 +411,5 @@ const styles = StyleSheet.create({
     color: colors.muted,
     textAlign: 'center',
     marginTop: spacing.xs,
-  },
-  // Inspection Modal Sheet
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalSheet: {
-    backgroundColor: colors.white,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    maxHeight: '85%',
-    padding: spacing.lg,
-  },
-  modalSheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    paddingBottom: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  modalGpName: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.text,
-  },
-  modalGpLocation: {
-    fontSize: 13,
-    color: colors.muted,
-    marginTop: 2,
-  },
-  modalScroll: {
-    marginTop: spacing.md,
-  },
-  modalStatusBanner: {
-    marginBottom: spacing.md,
-  },
-  modalSection: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  modalSectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  modalInfoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E2E8F0',
-  },
-  modalInfoLabel: {
-    fontSize: 13,
-    color: colors.muted,
-  },
-  modalInfoValue: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
   },
 });

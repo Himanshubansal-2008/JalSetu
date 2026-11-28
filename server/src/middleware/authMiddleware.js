@@ -85,10 +85,16 @@ const authenticate = async (req, res, next) => {
 
     next();
   } catch (err) {
-    console.error('Authentication error:', err);
-    return res.status(500).json({ error: 'Authentication failed' });
+    next(err);
   }
 };
+
+/**
+ * Shared helper to check if a user is a platform Super Administrator.
+ */
+function isSuperAdmin(user) {
+  return user?.role === 'SUPER_ADMIN';
+}
 
 // Middleware to enforce role-based access control
 const requireRole = (...roles) => {
@@ -104,7 +110,13 @@ const requireRole = (...roles) => {
   };
 };
 
+const requireAdmin = requireRole('ADMIN');
+const requireSuperAdmin = requireRole('SUPER_ADMIN');
+
 module.exports = {
   authenticate,
   requireRole,
+  requireAdmin,
+  requireSuperAdmin,
+  isSuperAdmin,
 };

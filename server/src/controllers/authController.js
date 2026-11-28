@@ -191,8 +191,7 @@ async function login(req, res, next) {
       return res.status(401).json({ error: 'Invalid phone or password' });
     }
 
-    const isActive = Boolean(user.isActive !== undefined ? user.isActive : user.active);
-    if (!isActive) {
+    if (!user.isActive) {
       return res.status(403).json({
         error: 'Account is deactivated. Contact your Gram Panchayat admin.',
       });
@@ -226,8 +225,7 @@ async function getMe(req, res, next) {
       include: { gp: true },
     });
 
-    const isActive = Boolean(user?.isActive !== undefined ? user?.isActive : user?.active);
-    if (!user || !isActive) {
+    if (!user || !user.isActive) {
       return res.status(403).json({
         error: 'Account is deactivated. Contact your Gram Panchayat admin.',
       });
@@ -336,8 +334,7 @@ async function refreshToken(req, res, next) {
       return res.status(401).json({ error: 'User not found' });
     }
 
-    const isActive = Boolean(user.isActive !== undefined ? user.isActive : user.active);
-    if (!isActive) {
+    if (!user.isActive) {
       return res.status(403).json({ error: 'Account is deactivated' });
     }
 

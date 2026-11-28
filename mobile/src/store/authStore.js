@@ -94,7 +94,7 @@ export const useAuthStore = create((set, get) => ({
   // Sign up / Register new Gram Panchayat and Admin
   signup: async (form) => {
     const response = await apiClient.post('/auth/register', form);
-    const { token, user, pendingApproval } = response.data;
+    const { token, user } = response.data;
     if (token) {
       await SecureStore.setItemAsync('token', token);
       reset401Lock();
