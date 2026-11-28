@@ -26,6 +26,7 @@ import { useAuthStore } from '../store/authStore';
 import { formatPaiseToRupees } from '../utils/currency';
 import { strings } from '../strings';
 import { colors, tones, spacing, radius } from '../theme';
+import ErrorBanner from '../components/ErrorBanner';
 
 // Helper: shifts YYYY-MM by delta months
 function shiftMonth(monthStr, delta) {
@@ -221,18 +222,11 @@ export default function MonthlySummaryScreen({ route, navigation }) {
       </View>
 
       {/* Error Card */}
-      {error ? (
-        <View style={styles.errorCard}>
-          <Ionicons name="alert-circle-outline" size={20} color={colors.danger} />
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={() => fetchSummary()}
-          >
-            <Text style={styles.retryButtonText}>{strings.retry}</Text>
-          </TouchableOpacity>
-        </View>
-      ) : null}
+      <ErrorBanner
+        error={error}
+        onRetry={() => fetchSummary()}
+        retryLabel={strings.retry}
+      />
 
       {/* 2. Top Month Totals Banner */}
       <View style={styles.totalsSection}>
@@ -563,29 +557,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: colors.text,
-  },
-  errorCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: tones.danger.bg,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  errorText: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.danger,
-    marginLeft: spacing.sm,
-  },
-  retryButton: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  retryButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
   },
   totalsSection: {
     marginBottom: spacing.lg,

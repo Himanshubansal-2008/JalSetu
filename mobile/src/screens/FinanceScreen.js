@@ -23,6 +23,8 @@ import { useAuthStore } from '../store/authStore';
 import { formatPaiseToRupees } from '../utils/currency';
 import { strings } from '../strings';
 import { colors, tones, spacing, radius } from '../theme';
+import MetricCard from '../components/MetricCard';
+import ErrorBanner from '../components/ErrorBanner';
 
 export default function FinanceScreen({ navigation }) {
   const user = useAuthStore((state) => state.user);
@@ -161,48 +163,28 @@ export default function FinanceScreen({ navigation }) {
       </View>
 
       {/* Error Notice */}
-      {error ? (
-        <View style={styles.errorCard}>
-          <Ionicons name="alert-circle-outline" size={20} color={colors.danger} />
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={() => fetchSummary()}
-          >
-            <Text style={styles.retryButtonText}>{strings.retry}</Text>
-          </TouchableOpacity>
-        </View>
-      ) : null}
+      <ErrorBanner
+        error={error}
+        onRetry={() => fetchSummary()}
+        retryLabel={strings.retry}
+      />
 
       {/* Metric Cards */}
       <View style={styles.metricsRow}>
-        {/* Income Card */}
-        <View style={[styles.metricCard, styles.incomeCard]}>
-          <View style={styles.metricHeader}>
-            <View style={[styles.iconCircle, { backgroundColor: tones.success.bg }]}>
-              <Ionicons name="arrow-down" size={16} color={tones.success.fg} />
-            </View>
-            <Text style={styles.metricLabel}>{strings.income}</Text>
-          </View>
-          <Text style={[styles.metricValue, { color: tones.success.fg }]}>
-            {formatPaiseToRupees(incomeTotal)}
-          </Text>
-          <Text style={styles.metricSubtext}>{strings.totalReceipts}</Text>
-        </View>
-
-        {/* Expense Card */}
-        <View style={[styles.metricCard, styles.expenseCard]}>
-          <View style={styles.metricHeader}>
-            <View style={[styles.iconCircle, { backgroundColor: tones.danger.bg }]}>
-              <Ionicons name="arrow-up" size={16} color={tones.danger.fg} />
-            </View>
-            <Text style={styles.metricLabel}>{strings.expense}</Text>
-          </View>
-          <Text style={[styles.metricValue, { color: tones.danger.fg }]}>
-            {formatPaiseToRupees(expenseTotal)}
-          </Text>
-          <Text style={styles.metricSubtext}>{strings.totalExpenses}</Text>
-        </View>
+        <MetricCard
+          label={strings.income}
+          value={formatPaiseToRupees(incomeTotal)}
+          subtitle={strings.totalReceipts}
+          icon="arrow-down"
+          tone="success"
+        />
+        <MetricCard
+          label={strings.expense}
+          value={formatPaiseToRupees(expenseTotal)}
+          subtitle={strings.totalExpenses}
+          icon="arrow-up"
+          tone="danger"
+        />
       </View>
 
       {/* Net Balance Card */}
@@ -448,54 +430,10 @@ const styles = StyleSheet.create({
     color: colors.primary,
     marginLeft: spacing.xs,
   },
-  errorCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: tones.danger.bg,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  errorText: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.danger,
-    marginLeft: spacing.sm,
-  },
-  retryButton: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  retryButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
-  },
   metricsRow: {
     flexDirection: 'row',
     gap: spacing.md,
     marginBottom: spacing.md,
-  },
-  metricCard: {
-    flex: 1,
-    backgroundColor: colors.white,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  incomeCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: tones.success.fg,
-  },
-  expenseCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: tones.danger.fg,
-  },
-  metricHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
   },
   iconCircle: {
     width: 24,
@@ -504,20 +442,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.xs,
-  },
-  metricLabel: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.muted,
-  },
-  metricValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginVertical: spacing.xs,
-  },
-  metricSubtext: {
-    fontSize: 11,
-    color: colors.muted,
   },
   netBalanceCard: {
     backgroundColor: colors.white,

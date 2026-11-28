@@ -24,6 +24,7 @@ import { todayString, formatDisplay, isoToDateString } from '../utils/dateUtil';
 import { typeLabel } from '../utils/assetUtil';
 import { strings } from '../strings';
 import { colors, tones, spacing, radius } from '../theme';
+import ErrorBanner from '../components/ErrorBanner';
 
 // Month helper: shifts YYYY-MM by delta months
 function shiftMonth(monthStr, delta) {
@@ -301,18 +302,11 @@ export default function CashBookScreen({ route, navigation }) {
       )}
 
       {/* Error Card */}
-      {error ? (
-        <View style={styles.errorCard}>
-          <Ionicons name="alert-circle-outline" size={20} color={colors.danger} />
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={() => fetchCashbook()}
-          >
-            <Text style={styles.retryButtonText}>{strings.retry}</Text>
-          </TouchableOpacity>
-        </View>
-      ) : null}
+      <ErrorBanner
+        error={error}
+        onRetry={() => fetchCashbook()}
+        retryLabel={strings.retry}
+      />
 
       {/* 3. Opening Balance Card */}
       <View style={styles.openingBalanceCard}>
@@ -638,29 +632,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.muted,
     marginBottom: 4,
-  },
-  errorCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: tones.danger.bg,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  errorText: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.danger,
-    marginLeft: spacing.sm,
-  },
-  retryButton: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  retryButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
   },
   openingBalanceCard: {
     backgroundColor: colors.white,

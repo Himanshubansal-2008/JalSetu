@@ -24,6 +24,7 @@ import { formatPaiseToRupees } from '../utils/currency';
 import { formatDisplay, isoToDateString } from '../utils/dateUtil';
 import { strings } from '../strings';
 import { colors, tones, spacing, radius } from '../theme';
+import StatusBadge from '../components/StatusBadge';
 import PayBillModal from '../components/PayBillModal';
 import { generateAndShareBillPdf } from '../utils/billPdf';
 
@@ -421,15 +422,17 @@ export default function ConsumerDetailScreen({ route, navigation }) {
                     {isPaid ? (
                       <View style={styles.paidInfoRow}>
                         <View style={styles.paidStatusWrap}>
-                          <View style={styles.statusPillPaid}>
-                            <Ionicons
-                              name="checkmark-circle"
-                              size={12}
-                              color={tones.success.fg}
-                              style={{ marginRight: 4 }}
-                            />
-                            <Text style={styles.statusPillPaidText}>PAID</Text>
-                          </View>
+                          <StatusBadge
+                            label="PAID"
+                            tone="success"
+                            icon={
+                              <Ionicons
+                                name="checkmark-circle"
+                                size={12}
+                                color={tones.success.fg}
+                              />
+                            }
+                          />
                           <Text style={styles.paidMetaText} numberOfLines={1}>
                             Paid on {formatPaymentDate(bill.paidAt)} • {bill.mode || 'Cash'}
                           </Text>
@@ -461,15 +464,17 @@ export default function ConsumerDetailScreen({ route, navigation }) {
                       </View>
                     ) : (
                       <View style={styles.pendingActionRow}>
-                        <View style={styles.statusPillPending}>
-                          <Ionicons
-                            name="time-outline"
-                            size={12}
-                            color={tones.danger.fg}
-                            style={{ marginRight: 4 }}
-                          />
-                          <Text style={styles.statusPillPendingText}>DUE</Text>
-                        </View>
+                        <StatusBadge
+                          label="DUE"
+                          tone="danger"
+                          icon={
+                            <Ionicons
+                              name="time-outline"
+                              size={12}
+                              color={tones.danger.fg}
+                            />
+                          }
+                        />
 
                         <View style={styles.pendingButtonsRow}>
                           <TouchableOpacity
@@ -904,19 +909,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  statusPillPaid: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: tones.success.bg,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-  },
-  statusPillPaidText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: tones.success.fg,
-  },
   paidMetaText: {
     fontSize: 12,
     color: colors.muted,
@@ -926,19 +918,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  statusPillPending: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: tones.danger.bg,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-  },
-  statusPillPendingText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: tones.danger.fg,
   },
   payNowBtn: {
     flexDirection: 'row',

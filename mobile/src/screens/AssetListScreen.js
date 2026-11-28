@@ -21,6 +21,8 @@ import { useAuthStore } from '../store/authStore';
 import ChipSelector from '../components/ChipSelector';
 import ListCard from '../components/ListCard';
 import EmptyState from '../components/EmptyState';
+import SearchBar from '../components/SearchBar';
+import ErrorBanner from '../components/ErrorBanner';
 import {
   ASSET_TYPES,
   ASSET_STATUSES,
@@ -286,34 +288,12 @@ export default function AssetListScreen({ navigation, route }) {
       {/* Top filters outside FlatList so TextInput never loses focus */}
       <View style={styles.topSection}>
         {/* Search input with icon and clear button */}
-        <View style={styles.searchContainer}>
-          <Ionicons
-            name="search-outline"
-            size={20}
-            color={colors.muted}
-            style={styles.searchIcon}
-          />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={strings.searchAssetsPlaceholder}
-            placeholderTextColor={colors.muted}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            autoCorrect={false}
-            autoCapitalize="none"
-            accessibilityLabel={strings.searchAssetsPlaceholder}
-          />
-          {searchQuery ? (
-            <TouchableOpacity
-              onPress={() => setSearchQuery('')}
-              style={styles.clearSearchButton}
-              accessibilityRole="button"
-              accessibilityLabel={strings.clearSearch}
-            >
-              <Ionicons name="close-circle" size={18} color={colors.muted} />
-            </TouchableOpacity>
-          ) : null}
-        </View>
+        <SearchBar
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder={strings.searchAssetsPlaceholder}
+          containerStyle={{ marginBottom: spacing.sm }}
+        />
 
         {/* Type filter chips */}
         <View style={styles.chipsWrapper}>

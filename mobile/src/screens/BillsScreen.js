@@ -11,7 +11,7 @@
  * - Robust pull-to-refresh, useFocusEffect, loading, and error-with-retry states
  */
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -31,6 +31,10 @@ import { formatPaiseToRupees } from '../utils/currency';
 import { strings } from '../strings';
 import { colors, tones, spacing, radius } from '../theme';
 import PayBillModal from '../components/PayBillModal';
+import SearchBar from '../components/SearchBar';
+import MetricCard from '../components/MetricCard';
+import ErrorBanner from '../components/ErrorBanner';
+import StatusBadge from '../components/StatusBadge';
 import { generateAndShareBillPdf } from '../utils/billPdf';
 
 // Returns current local month in "YYYY-MM"
@@ -313,17 +317,17 @@ export default function BillsScreen({ navigation, route }) {
         <View style={styles.cardFooterRow}>
           {isPaid ? (
             <View style={styles.paidInfoRow}>
-              <View style={styles.statusPillPaid}>
-                <Ionicons
-                  name="checkmark-circle"
-                  size={12}
-                  color={tones.success.fg}
-                  style={{ marginRight: 4 }}
-                />
-                <Text style={styles.statusPillPaidText}>
-                  Paid • {item.mode || 'Cash'} • {formatPaidDateShort(item.paidAt)}
-                </Text>
-              </View>
+              <StatusBadge
+                label={`Paid • ${item.mode || 'Cash'} • ${formatPaidDateShort(item.paidAt)}`}
+                tone="success"
+                icon={
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={12}
+                    color={tones.success.fg}
+                  />
+                }
+              />
 
               <TouchableOpacity
                 style={styles.shareBtn}
@@ -351,15 +355,17 @@ export default function BillsScreen({ navigation, route }) {
             </View>
           ) : (
             <View style={styles.pendingActionRow}>
-              <View style={styles.statusPillPending}>
-                <Ionicons
-                  name="time-outline"
-                  size={12}
-                  color={tones.danger.fg}
-                  style={{ marginRight: 4 }}
-                />
-                <Text style={styles.statusPillPendingText}>Pending</Text>
-              </View>
+              <StatusBadge
+                label="Pending"
+                tone="danger"
+                icon={
+                  <Ionicons
+                    name="time-outline"
+                    size={12}
+                    color={tones.danger.fg}
+                  />
+                }
+              />
 
               <View style={styles.pendingButtonsRow}>
                 <TouchableOpacity
@@ -464,54 +470,26 @@ export default function BillsScreen({ navigation, route }) {
 
       {/* 2. Top Metric Summary Cards (Billed, Collected, Pending) */}
       <View style={styles.summaryContainer}>
-        {/* Billed Card */}
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryCardLabel}>
-            {strings.billedLabel || 'Billed'}
-          </Text>
-          <Text style={styles.summaryCardAmount}>
-            {formatPaiseToRupees(summary?.totalBilledPaise || 0)}
-          </Text>
-          <Text style={styles.summaryCardSubtitle}>
-            {summary?.totalBillsCount || 0} bills
-          </Text>
-        </View>
-
-        {/* Collected Card */}
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryCardLabel}>
-            {strings.collectedLabel || 'Collected'}
-          </Text>
-          <Text
-            style={[
-              styles.summaryCardAmount,
-              { color: tones.success.fg },
-            ]}
-          >
-            {formatPaiseToRupees(summary?.totalCollectedPaise || 0)}
-          </Text>
-          <Text style={styles.summaryCardSubtitle}>
-            {summary?.paidBillsCount || 0} paid
-          </Text>
-        </View>
-
-        {/* Pending Card */}
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryCardLabel}>
-            {strings.pendingLabel || 'Pending'}
-          </Text>
-          <Text
-            style={[
-              styles.summaryCardAmount,
-              { color: tones.danger.fg },
-            ]}
-          >
-            {formatPaiseToRupees(summary?.totalPendingPaise || 0)}
-          </Text>
-          <Text style={styles.summaryCardSubtitle}>
-            {summary?.pendingBillsCount || 0} unpaid
-          </Text>
-        </View>
+        <MetricCard
+          label={strings.billedLabel || 'Billed'}
+          value={formatPaiseToRupees(summary?.totalBilledPaise || 0)}
+          subtitle={`${summary?.totalBillsCount || 0} bills`}
+          containerStyle={{ marginRight: spacing.xs }}
+        />
+        <MetricCard
+          label={strings.collectedLabel || 'Collected'}
+          value={formatPaiseToRupees(summary?.totalCollectedPaise || 0)}
+          subtitle={`${summary?.paidBillsCount || 0} paid`}
+          tone="success"
+          containerStyle={{ marginHorizontal: spacing.xs / 2 }}
+        />
+        <MetricCard
+          label={strings.pendingLabel || 'Pending'}
+          value={formatPaiseToRupees(summary?.totalPendingPaise || 0)}
+          subtitle={`${summary?.pendingBillsCount || 0} unpaid`}
+          tone="danger"
+          containerStyle={{ marginLeft: spacing.xs }}
+        />
       </View>
 
       {/* 3. Generate Bills Action Button (Admin Only) */}
@@ -551,31 +529,16 @@ export default function BillsScreen({ navigation, route }) {
       {/* 4. Filter Chips & Search Bar */}
       <View style={styles.filterSection}>
         {/* Search Bar */}
-        <View style={styles.searchBar}>
-          <Ionicons
-            name="search-outline"
-            size={16}
-            color={colors.muted}
-            style={{ marginRight: spacing.xs }}
-          />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={
-              strings.searchBillsPlaceholder ||
-              'Search by consumer name or house number...'
-            }
-            placeholderTextColor={colors.muted}
-            value={searchQuery}
-            onChangeText={handleSearchChange}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          {searchQuery ? (
-            <TouchableOpacity onPress={handleClearSearch} style={{ padding: 4 }}>
-              <Ionicons name="close-circle" size={16} color={colors.muted} />
-            </TouchableOpacity>
-          ) : null}
-        </View>
+        <SearchBar
+          value={searchQuery}
+          onChangeText={handleSearchChange}
+          onClear={handleClearSearch}
+          placeholder={
+            strings.searchBillsPlaceholder ||
+            'Search by consumer name or house number...'
+          }
+          containerStyle={{ marginBottom: spacing.sm }}
+        />
 
         {/* Filter Chips */}
         <View style={styles.chipsRow}>
@@ -610,23 +573,11 @@ export default function BillsScreen({ navigation, route }) {
       </View>
 
       {/* Error Banner with Retry */}
-      {error ? (
-        <View style={styles.errorBanner}>
-          <Ionicons
-            name="alert-circle-outline"
-            size={18}
-            color={colors.danger}
-            style={{ marginRight: spacing.xs }}
-          />
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity
-            onPress={() => fetchData()}
-            style={styles.retryButton}
-          >
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      ) : null}
+      <ErrorBanner
+        error={error}
+        onRetry={() => fetchData()}
+        retryLabel="Retry"
+      />
 
       {/* 5. Bills List */}
       {loading && !refreshing ? (
@@ -951,20 +902,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  statusPillPaid: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: tones.success.bg,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-    flexShrink: 1,
-  },
-  statusPillPaidText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: tones.success.fg,
-  },
   shareBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1009,19 +946,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  statusPillPending: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: tones.danger.bg,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-  },
-  statusPillPendingText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: tones.danger.fg,
   },
   payBtn: {
     flexDirection: 'row',

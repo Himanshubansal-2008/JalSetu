@@ -20,6 +20,7 @@ import apiClient, { getErrorMessage } from '../api/apiClient';
 import { useAuthStore } from '../store/authStore';
 import ListCard from '../components/ListCard';
 import EmptyState from '../components/EmptyState';
+import SearchBar from '../components/SearchBar';
 import { strings } from '../strings';
 import { colors, tones, spacing, radius } from '../theme';
 
@@ -262,34 +263,12 @@ export default function InventoryListScreen({ navigation, route }) {
         ) : null}
 
         {/* Search input with clear button */}
-        <View style={styles.searchContainer}>
-          <Ionicons
-            name="search-outline"
-            size={20}
-            color={colors.muted}
-            style={styles.searchIcon}
-          />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={strings.searchInventoryPlaceholder}
-            placeholderTextColor={colors.muted}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            autoCorrect={false}
-            autoCapitalize="none"
-            accessibilityLabel={strings.searchInventoryPlaceholder}
-          />
-          {searchQuery ? (
-            <TouchableOpacity
-              onPress={() => setSearchQuery('')}
-              style={styles.clearSearchButton}
-              accessibilityRole="button"
-              accessibilityLabel={strings.clearSearch}
-            >
-              <Ionicons name="close-circle" size={18} color={colors.muted} />
-            </TouchableOpacity>
-          ) : null}
-        </View>
+        <SearchBar
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder={strings.searchInventoryPlaceholder}
+          containerStyle={{ marginBottom: spacing.sm }}
+        />
 
         {/* Filter row: Low-stock toggle chip */}
         <View style={styles.filterRow}>

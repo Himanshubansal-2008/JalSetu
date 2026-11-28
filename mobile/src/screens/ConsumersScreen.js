@@ -28,6 +28,8 @@ import apiClient, { getErrorMessage } from '../api/apiClient';
 import { useAuthStore } from '../store/authStore';
 import { formatPaiseToRupees } from '../utils/currency';
 import EmptyState from '../components/EmptyState';
+import SearchBar from '../components/SearchBar';
+import ErrorBanner from '../components/ErrorBanner';
 import { strings } from '../strings';
 import { colors, tones, spacing, radius } from '../theme';
 
@@ -206,33 +208,13 @@ export default function ConsumersScreen({ navigation }) {
     <View style={styles.container}>
       {/* Search Bar & Quick Action Row */}
       <View style={styles.topControlSection}>
-        <View style={styles.searchBarContainer}>
-          <Ionicons
-            name="search-outline"
-            size={18}
-            color={colors.muted}
-            style={styles.searchIcon}
-          />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={strings.searchConsumersPlaceholder}
-            placeholderTextColor={colors.muted}
-            value={searchQuery}
-            onChangeText={handleSearchChange}
-            autoCapitalize="none"
-            autoCorrect={false}
-            clearButtonMode="while-editing"
-          />
-          {searchQuery ? (
-            <TouchableOpacity
-              onPress={handleClearSearch}
-              style={styles.clearSearchButton}
-              accessibilityLabel="Clear search"
-            >
-              <Ionicons name="close-circle" size={18} color={colors.muted} />
-            </TouchableOpacity>
-          ) : null}
-        </View>
+        <SearchBar
+          value={searchQuery}
+          onChangeText={handleSearchChange}
+          onClear={handleClearSearch}
+          placeholder={strings.searchConsumersPlaceholder}
+          containerStyle={{ flex: 1, marginRight: spacing.sm }}
+        />
 
         {/* Quick Jump to Bills & Add Consumer Action Bar */}
         <View style={styles.actionsBar}>
@@ -273,26 +255,11 @@ export default function ConsumersScreen({ navigation }) {
       </View>
 
       {/* Error Message Banner */}
-      {error ? (
-        <View style={styles.errorBanner}>
-          <Ionicons
-            name="alert-circle-outline"
-            size={18}
-            color={colors.danger}
-            style={{ marginRight: spacing.xs }}
-          />
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={() => fetchConsumers()}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel="Retry fetching consumers"
-          >
-            <Text style={styles.retryButtonText}>{strings.retry || 'Retry'}</Text>
-          </TouchableOpacity>
-        </View>
-      ) : null}
+      <ErrorBanner
+        error={error}
+        onRetry={() => fetchConsumers()}
+        retryLabel={strings.retry || 'Retry'}
+      />
 
       {/* Loading Indicator */}
       {initialLoading ? (
