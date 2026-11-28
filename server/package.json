@@ -7,6 +7,7 @@
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "bootstrap:super-admin": "node src/utils/mainAdmin.js",
+    "promote:super-admin": "node scripts/promote-super-admin.js",
     "postinstall": "prisma generate"
   },
   "prisma": {

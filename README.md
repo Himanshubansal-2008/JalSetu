@@ -130,6 +130,23 @@ npm run seed              # optional demo data
 npm run dev
 ```
 
+#### Super Administrator Bootstrap & Role Upgrade
+- **Production Server Boot**: Fast and predictable; heavy bootstrap routines are decoupled from normal server startup.
+- **Initial Bootstrap**: To bootstrap the platform Super Admin on server boot, run with `RUN_SUPER_ADMIN_BOOTSTRAP=true` or execute the dedicated CLI bootstrap command:
+  ```bash
+  npm run bootstrap:super-admin
+  ```
+- **Upgrading an Existing Admin to Super Admin**: To promote an existing administrator account (role `ADMIN`) to platform `SUPER_ADMIN`, use the one-time promotion script:
+  ```bash
+  npm run promote:super-admin <PHONE_NUMBER>
+  ```
+  Or run the equivalent SQL directly in PostgreSQL:
+  ```sql
+  UPDATE "User"
+  SET "role" = 'SUPER_ADMIN', "active" = true, "tokenVersion" = "tokenVersion" + 1
+  WHERE "phone" = '<PHONE_NUMBER>';
+  ```
+
 ### Mobile
 ```bash
 cd mobile
@@ -158,10 +175,16 @@ eas build -p android --profile preview
 | Variable | Description |
 |---|---|
 | `DATABASE_URL` | PostgreSQL connection string |
-| `JWT_SECRET` | Secret for signing auth tokens |
-| `DEMO_MODE` | `"true"` to enable one-tap demo logins (keep `"false"` in production) |
+| `JWT_SECRET` | Secret for signing auth tokens (minimum 32-character high-entropy secret) |
+| `DEMO_MODE` | `"true"` to enable one-tap demo logins (must be `"false"` in production) |
 | `MAIN_ADMIN_PHONE` | Initial Super Administrator bootstrap phone number |
 | `MAIN_ADMIN_PASSWORD` | Initial Super Administrator bootstrap password |
+| `RUN_SUPER_ADMIN_BOOTSTRAP` | Set to `"true"` if you want `ensureMainAdminExists` to run automatically during `app.listen()` boot |
+
+#### Security, Credentials Rotation & Submission Packaging
+- **Secrets Isolation**: Real environment files (`.env`, `.env.*`) are strictly git-ignored via `.gitignore` and must never be committed to source control or bundled into distribution archives.
+- **Credential Rotation**: Before production deployment or submission, rotate `JWT_SECRET`, database passwords, and `MAIN_ADMIN_PASSWORD`. `.env.example` provides sanitized template values with production guidance.
+- **Archive Guardrail**: When generating submission zip/tar archives, ensure all `.env*` files (except `.env.example`), `node_modules/`, and build artifacts (`dist/`, `.expo/`) are excluded.
 
 #### Mobile (`mobile/.env` & EAS Build Environment)
 | Variable | Description |

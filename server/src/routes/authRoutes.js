@@ -7,7 +7,6 @@ const {
   login,
   getMe,
   changePassword,
-  refreshToken,
 } = require('../controllers/authController');
 
 const router = express.Router();
@@ -21,9 +20,6 @@ router.post('/demo-login', authLimiter, demoLogin);
 
 // Standard credentials login (Public, rate-limited)
 router.post('/login', authLimiter, login);
-
-// Refresh access token (Public/Bearer, rate-limited)
-router.post('/refresh', authLimiter, refreshToken);
 
 // Authenticated user profile (Protected)
 router.get('/me', authenticate, getMe);

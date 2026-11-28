@@ -137,14 +137,19 @@ export default function StockTransactionScreen({
     }
   }, [isStockIn]);
 
-  // Client-side quantity validation: Number(quantity) > 0
+  // Client-side quantity validation: Number(quantity) > 0 and integer
   const numQuantity = Number(quantity.trim());
   const isQuantityValid =
-    quantity.trim() !== '' && !isNaN(numQuantity) && numQuantity > 0;
+    quantity.trim() !== '' &&
+    !isNaN(numQuantity) &&
+    numQuantity > 0 &&
+    Number.isInteger(numQuantity);
 
   const quantityError =
     quantityTouched && !isQuantityValid
-      ? strings.errQuantityPositive
+      ? !Number.isInteger(numQuantity) && !isNaN(numQuantity) && numQuantity > 0
+        ? 'Quantity must be a whole number'
+        : strings.errQuantityPositive
       : '';
 
   const handleQuantityChange = (val) => {
@@ -283,7 +288,7 @@ export default function StockTransactionScreen({
               style={styles.quantityInput}
               value={quantity}
               onChangeText={handleQuantityChange}
-              keyboardType="numeric"
+              keyboardType="number-pad"
               placeholder="0"
               placeholderTextColor={colors.muted}
               editable={!submitting}

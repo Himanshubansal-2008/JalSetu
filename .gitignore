@@ -1,5 +1,32 @@
+# Dependencies
 node_modules/
+
+# Environment files (exclude all .env and .env.* while preserving .env.example)
 .env
+.env.*
+!.env.example
+
+# Logs
 *.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Build outputs & Expo
 .expo/
 dist/
+build/
+web-build/
+*.tsbuildinfo
+
+# Archives & submission packaging
+*.zip
+*.tar.gz
+*.tar
+*.tgz
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+
+Thumbs.db

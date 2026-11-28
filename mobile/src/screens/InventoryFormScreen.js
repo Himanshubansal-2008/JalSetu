@@ -26,7 +26,7 @@ import EmptyState from '../components/EmptyState';
 import { strings } from '../strings';
 import { colors, tones, spacing, radius } from '../theme';
 
-const UNIT_PRESETS = ['kg', 'pcs', 'litres', 'bags', 'meters'];
+const UNIT_PRESETS = ['pcs', 'kg', 'grams', 'litres', 'ml', 'bags', 'meters'];
 
 export default function InventoryFormScreen({ route, navigation }) {
   const user = useAuthStore((state) => state.user);
@@ -197,15 +197,15 @@ export default function InventoryFormScreen({ route, navigation }) {
     if (!isEdit) {
       const trimmedQty = quantity.trim();
       const numQty = Number(trimmedQty);
-      if (trimmedQty === '' || isNaN(numQty) || numQty < 0) {
-        newErrors.quantity = strings.errQuantityInvalid;
+      if (trimmedQty === '' || isNaN(numQty) || numQty < 0 || !Number.isInteger(numQty)) {
+        newErrors.quantity = 'Quantity must be a whole number (0 or greater)';
       }
     }
 
     const trimmedReorder = reorderLevel.trim();
     const numReorder = Number(trimmedReorder);
-    if (trimmedReorder === '' || isNaN(numReorder) || numReorder < 0) {
-      newErrors.reorderLevel = strings.errReorderLevelInvalid;
+    if (trimmedReorder === '' || isNaN(numReorder) || numReorder < 0 || !Number.isInteger(numReorder)) {
+      newErrors.reorderLevel = 'Reorder level must be a whole number (0 or greater)';
     }
 
     setErrors(newErrors);
@@ -432,7 +432,8 @@ export default function InventoryFormScreen({ route, navigation }) {
             value={quantity}
             onChangeText={handleQuantityChange}
             placeholder={strings.quantityPlaceholder}
-            keyboardType="numeric"
+            keyboardType="number-pad"
+            hint="Whole units only (e.g. 100). For fractional stock (e.g. 2.5 kg), record as grams."
             error={errors.quantity}
             editable={!submitting}
           />
@@ -445,8 +446,8 @@ export default function InventoryFormScreen({ route, navigation }) {
           value={reorderLevel}
           onChangeText={handleReorderLevelChange}
           placeholder={strings.reorderLevelPlaceholder}
-          keyboardType="numeric"
-          hint={strings.reorderLevelHint}
+          keyboardType="number-pad"
+          hint="Whole units only (e.g. 20). Alerts when stock drops to or below this level."
           error={errors.reorderLevel}
           editable={!submitting && !deleting}
         />

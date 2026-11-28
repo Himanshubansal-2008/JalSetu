@@ -299,78 +299,10 @@ async function changePassword(req, res, next) {
   }
 }
 
-/**
- * Refresh access token using active session or refresh token.
- * POST /api/auth/refresh
- */
-async function refreshToken(req, res, next) {
-  try {
-    let tokenToVerify = req.body?.refreshToken;
-    if (!tokenToVerify && req.headers.authorization?.startsWith('Bearer ')) {
-      tokenToVerify = req.headers.authorization.split(' ')[1];
-    }
-
-    if (!tokenToVerify) {
-      return res.status(400).json({ error: 'Token is required' });
-    }
-
-    let payload;
-    try {
-      payload = jwt.verify(tokenToVerify, process.env.JWT_SECRET);
-    } catch (err) {
-      return res.status(401).json({ error: 'Invalid or expired token' });
-    }
-
-    if (!payload?.id) {
-      return res.status(401).json({ error: 'Invalid token payload' });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: payload.id },
-      include: { gp: true },
-    });
-
-    if (!user) {
-      return res.status(401).json({ error: 'User not found' });
-    }
-
-    if (!user.isActive) {
-      return res.status(403).json({ error: 'Account is deactivated' });
-    }
-
-    if (!user.gp || user.gp.isApproved !== true) {
-      return res.status(403).json({
-        error: 'Gram Panchayat registration is pending approval',
-      });
-    }
-
-    // Verify token version hasn't been revoked
-    if (
-      payload.tokenVersion !== undefined &&
-      user.tokenVersion !== undefined &&
-      payload.tokenVersion !== user.tokenVersion
-    ) {
-      return res.status(401).json({
-        error: 'Token has been revoked. Please log in again.',
-      });
-    }
-
-    const token = signToken(user);
-
-    return res.status(200).json({
-      token,
-      user: publicUser(user),
-    });
-  } catch (err) {
-    next(err);
-  }
-}
-
 module.exports = {
   registerGp,
   demoLogin,
   login,
   getMe,
   changePassword,
-  refreshToken,
 };

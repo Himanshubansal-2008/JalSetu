@@ -23,15 +23,18 @@ const createInventoryItemSchema = z.object({
     .max(50, 'Unit cannot exceed 50 characters'),
   quantity: z
     .number({ invalid_type_error: 'Quantity must be a number' })
+    .int('Quantity must be a whole number')
     .min(0, 'Quantity cannot be negative')
     .default(0)
     .optional(),
   initialQuantity: z
     .number({ invalid_type_error: 'Initial quantity must be a number' })
+    .int('Quantity must be a whole number')
     .min(0, 'Initial quantity cannot be negative')
     .optional(),
   reorderLevel: z
     .number({ invalid_type_error: 'Reorder level must be a number' })
+    .int('Reorder level must be a whole number')
     .min(0, 'Reorder level cannot be negative')
     .default(0)
     .optional(),
@@ -55,6 +58,7 @@ const updateInventoryItemSchema = z
       .optional(),
     reorderLevel: z
       .number({ invalid_type_error: 'Reorder level must be a number' })
+      .int('Reorder level must be a whole number')
       .min(0, 'Reorder level cannot be negative')
       .optional(),
   })
@@ -91,6 +95,7 @@ const stockInSchema = z.object({
       required_error: 'Quantity is required',
       invalid_type_error: 'Quantity must be a number',
     })
+    .int('Quantity must be a whole number')
     .positive('Quantity must be greater than 0'),
   note: z
     .string({ invalid_type_error: 'Note must be a string' })
@@ -107,6 +112,7 @@ const stockOutSchema = z.object({
       required_error: 'Quantity is required',
       invalid_type_error: 'Quantity must be a number',
     })
+    .int('Quantity must be a whole number')
     .positive('Quantity must be greater than 0'),
   note: z
     .string({ invalid_type_error: 'Note must be a string' })

@@ -1,0 +1,10 @@
+-- AlterEnum
+ALTER TYPE "Role" ADD VALUE IF NOT EXISTS 'SUPER_ADMIN';
+
+-- AlterTable GramPanchayat
+ALTER TABLE "GramPanchayat" ADD COLUMN IF NOT EXISTS "isApproved" BOOLEAN NOT NULL DEFAULT false;
+
+-- AlterTable LedgerEntry
+ALTER TABLE "LedgerEntry" ADD COLUMN IF NOT EXISTS "voidedAt" TIMESTAMP(3);
+ALTER TABLE "LedgerEntry" ADD COLUMN IF NOT EXISTS "voidedById" TEXT;
+ALTER TABLE "LedgerEntry" ADD COLUMN IF NOT EXISTS "voidReason" TEXT;

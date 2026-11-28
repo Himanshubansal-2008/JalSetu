@@ -51,14 +51,13 @@ const authenticate = async (req, res, next) => {
       });
     }
 
-    // Verify tokenVersion matches to enforce instant token revocation on password change/reset/deactivation
+    // Enforce numeric tokenVersion matching to reject unversioned/legacy tokens and revoked tokens
     if (
-      payload.tokenVersion !== undefined &&
-      dbUser.tokenVersion !== undefined &&
+      typeof payload.tokenVersion !== 'number' ||
       payload.tokenVersion !== dbUser.tokenVersion
     ) {
       return res.status(401).json({
-        error: 'Token has been revoked. Please log in again.',
+        error: 'Token revoked or invalid token version. Please log in again.',
       });
     }
 
