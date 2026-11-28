@@ -1,6 +1,6 @@
 /**
  * ProfileScreen.js
- * Profile & Settings screen for both Admin and Worker users in the JalKosh mobile app.
+ * Profile & Settings screen for both Admin and Worker users in the JalSetu mobile app.
  *
  * Features:
  * - Clean identity card: Name, phone, role badge ("Gram Panchayat Admin" vs. "Field Worker")
@@ -180,7 +180,7 @@ export default function ProfileScreen({ navigation }) {
   const handleLogout = useCallback(() => {
     Alert.alert(
       'Log Out',
-      'Log out of JalKosh on this device?',
+      'Log out of JalSetu on this device?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -538,7 +538,7 @@ export default function ProfileScreen({ navigation }) {
               color={colors.muted}
               style={{ marginRight: 8 }}
             />
-            <Text style={styles.cardSectionTitle}>About JalKosh</Text>
+            <Text style={styles.cardSectionTitle}>About JalSetu</Text>
           </View>
 
           <View style={styles.detailList}>
@@ -559,7 +559,7 @@ export default function ProfileScreen({ navigation }) {
           onPress={handleLogout}
           activeOpacity={0.8}
           accessibilityRole="button"
-          accessibilityLabel="Log out of JalKosh"
+          accessibilityLabel="Log out of JalSetu"
         >
           <Ionicons
             name="log-out-outline"

@@ -1,7 +1,7 @@
 /**
  * billPdf.js
  * Crisp, print-ready HTML-to-PDF generation and native sharing utility for
- * JalKosh water bills and payment receipts using expo-print and expo-sharing.
+ * JalSetu water bills and payment receipts using expo-print and expo-sharing.
  *
  * Safe on both Android and iOS WebView print engines (pure inline CSS,
  * no external fonts or remote URLs, offline-ready).
@@ -52,7 +52,7 @@ export function formatPaymentDate(dateVal) {
 }
 
 /**
- * Generates print-ready HTML string for a JalKosh water bill or receipt.
+ * Generates print-ready HTML string for a JalSetu water bill or receipt.
  */
 export function generateBillHtml({ bill, consumer, gp } = {}) {
   if (!bill) return '';
@@ -374,7 +374,7 @@ export function generateBillHtml({ bill, consumer, gp } = {}) {
 
       <!-- Footer -->
       <div class="footer">
-        <div>Generated via <span class="appName">JalKosh</span> • Gram Panchayat Water Supply O&M</div>
+        <div>Generated via <span class="appName">JalSetu</span> • Gram Panchayat Water Supply O&M</div>
         <div style="margin-top: 4px; font-size: 10px; color: #94a3b8;">Printed on ${generatedDate}</div>
       </div>
     </div>

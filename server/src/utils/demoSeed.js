@@ -5,6 +5,7 @@
  */
 
 const bcrypt = require('bcryptjs');
+const { getMainAdminPassword, generateDummyPassword } = require('./credentials');
 
 const MAIN_ADMIN_GP = {
   name: 'Platform Administration (HQ)',
@@ -32,19 +33,16 @@ const DEMO_USERS = [
   {
     name: 'Sarpanch Ramesh Patil',
     phone: '9876543210',
-    rawPassword: 'Admin@123',
     role: 'ADMIN',
   },
   {
     name: 'Vikas Shinde (Operator)',
     phone: '9876543211',
-    rawPassword: 'Worker@123',
     role: 'WORKER',
   },
   {
     name: 'Sunil More (Lineman)',
     phone: '9876543212',
-    rawPassword: 'Worker@123',
     role: 'WORKER',
   },
 ];
@@ -349,7 +347,8 @@ async function seedDemoGp(prisma, options = {}) {
       });
 
       if (!mainAdmin) {
-        const hashedPassword = await bcrypt.hash('Admin@123', 10);
+        const mainAdminPassword = getMainAdminPassword();
+        const hashedPassword = await bcrypt.hash(mainAdminPassword, 10);
         mainAdmin = await prisma.user.create({
           data: {
             gpId: hqGp.id,
@@ -400,7 +399,8 @@ async function seedDemoGp(prisma, options = {}) {
   // 2. Create Users
   const userMap = {};
   for (const u of DEMO_USERS) {
-    const hashedPassword = await bcrypt.hash(u.rawPassword, 10);
+    const dummyPassword = generateDummyPassword();
+    const hashedPassword = await bcrypt.hash(dummyPassword, 10);
     const createdUser = await prisma.user.create({
       data: {
         gpId: gp.id,
@@ -434,7 +434,8 @@ async function seedDemoGp(prisma, options = {}) {
     include: { gp: true },
   });
 
-  const mainAdminHashedPassword = await bcrypt.hash('Admin@123', 10);
+  const mainAdminPassword = getMainAdminPassword();
+  const mainAdminHashedPassword = await bcrypt.hash(mainAdminPassword, 10);
   if (!mainAdminUser) {
     mainAdminUser = await prisma.user.create({
       data: {

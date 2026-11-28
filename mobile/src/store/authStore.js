@@ -72,9 +72,9 @@ export const useAuthStore = create((set, get) => ({
     return response.data;
   },
 
-  // One-tap demo login (Admin or Worker) with optional dataset reset
-  demoLogin: async ({ role, resetData = false }) => {
-    const response = await apiClient.post('/auth/demo-login', { role, resetData });
+  // One-tap demo login (Main Admin, GP Admin, or Worker)
+  demoLogin: async ({ role }) => {
+    const response = await apiClient.post('/auth/demo-login', { role });
     const { token, user, gp } = response.data;
     if (token) {
       await SecureStore.setItemAsync('token', token);

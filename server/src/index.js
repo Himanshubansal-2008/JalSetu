@@ -41,6 +41,9 @@ app.use('/api/workers', require('./routes/workerRoute'));
 // Gram Panchayat approval routes
 app.use('/api/gps', require('./routes/gpRoute'));
 
+// Platform Administration routes (Main Admin only)
+app.use('/api/admin', require('./routes/adminRoute'));
+
 // 404 handler for unmatched routes
 app.use((req, res, next) => {
   res.status(404).json({ error: 'Route not found' });

@@ -1,6 +1,6 @@
 /**
  * dashboardController.js
- * Aggregated Dashboard metrics controller for JalKosh.
+ * Aggregated Dashboard metrics controller for JalSetu.
  *
  * Scoped strictly to the authenticated user's Gram Panchayat (gpId = req.user.gpId).
  * Returns operational counts (assets, low stock inventory) for both admin and worker roles.

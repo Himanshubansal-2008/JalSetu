@@ -1,6 +1,6 @@
 /**
  * BillsScreen.js
- * Monthly Bills management screen in the JalKosh mobile app.
+ * Monthly Bills management screen in the JalSetu mobile app.
  *
  * Features:
  * - Month selector (< / > arrows) with formatted month label

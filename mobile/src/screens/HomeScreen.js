@@ -1,6 +1,6 @@
 /**
  * HomeScreen.js (DashboardScreen)
- * Role-aware Home Dashboard for the JalKosh mobile app powered by GET /api/dashboard.
+ * Role-aware Home Dashboard for the JalSetu mobile app powered by GET /api/dashboard.
  *
  * Scoped strictly to the logged-in user's Gram Panchayat.
  * - Admin view: System operational metrics (Assets, Low-Stock items),
@@ -127,7 +127,7 @@ export default function HomeScreen({ navigation }) {
   const handleLogout = useCallback(() => {
     Alert.alert(
       strings.logout || 'Log Out',
-      'Are you sure you want to log out of JalKosh?',
+      'Are you sure you want to log out of JalSetu?',
       [
         { text: 'Cancel', style: 'cancel' },
         {

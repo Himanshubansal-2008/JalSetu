@@ -1,9 +1,11 @@
 const bcrypt = require('bcryptjs');
 const prisma = require('../prisma');
+const { getMainAdminPassword } = require('./credentials');
 
 /**
  * Ensures the designated Main Admin user (configured via MAIN_ADMIN_PHONE in .env)
  * exists in the database with role 'ADMIN' and active status.
+ * Uses MAIN_ADMIN_PASSWORD from environment (never hardcodes passwords).
  */
 async function ensureMainAdminExists() {
   try {
@@ -32,7 +34,8 @@ async function ensureMainAdminExists() {
     });
 
     if (!existingUser) {
-      const hashedPassword = await bcrypt.hash('Admin@123', 10);
+      const rawPassword = getMainAdminPassword();
+      const hashedPassword = await bcrypt.hash(rawPassword, 10);
       await prisma.user.create({
         data: {
           gpId: gp.id,
@@ -43,14 +46,14 @@ async function ensureMainAdminExists() {
           isActive: true,
         },
       });
-      console.log(`[MainAdmin] Created main admin user with phone ${mainAdminPhone}`);
+      console.log(`[MainAdmin] Initialized platform main administrator account (${mainAdminPhone})`);
     } else {
       // Ensure linked to HQ GP, role is ADMIN and isActive is true
       await prisma.user.update({
         where: { id: existingUser.id },
         data: { gpId: gp.id, role: 'ADMIN', isActive: true },
       });
-      console.log(`[MainAdmin] Ensured main admin (${mainAdminPhone}) is active ADMIN linked to HQ`);
+      console.log(`[MainAdmin] Verified platform main administrator account (${mainAdminPhone})`);
     }
   } catch (err) {
     console.error('[MainAdmin] Error ensuring main admin exists:', err.message);

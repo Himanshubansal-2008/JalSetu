@@ -79,7 +79,7 @@ export function getErrorMessage(error, fallbackMessage) {
     error.message?.includes('Network request failed');
 
   if (isNetwork) {
-    return 'Unable to reach JalKosh server. Check your internet connection and try again.';
+    return 'Unable to reach JalSetu server. Check your internet connection and try again.';
   }
 
   // 3. HTTP 500+ Internal Server Error (filter out raw status string)

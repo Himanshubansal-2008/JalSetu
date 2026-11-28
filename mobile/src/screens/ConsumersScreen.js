@@ -1,6 +1,6 @@
 /**
  * ConsumersScreen.js
- * Admin-only Consumers list screen in the JalKosh mobile app.
+ * Admin-only Consumers list screen in the JalSetu mobile app.
  *
  * Features:
  * - Admin route guard protecting /api/consumers

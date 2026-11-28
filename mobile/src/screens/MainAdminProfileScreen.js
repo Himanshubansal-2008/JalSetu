@@ -23,7 +23,6 @@ import { colors, tones, spacing, radius } from '../theme';
 export default function MainAdminProfileScreen({ navigation }) {
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
-  const demoLogin = useAuthStore((state) => state.demoLogin);
 
   const [resetting, setResetting] = useState(false);
 
@@ -60,8 +59,8 @@ export default function MainAdminProfileScreen({ navigation }) {
           onPress: async () => {
             try {
               setResetting(true);
-              await demoLogin({ role: 'main_admin', resetData: true });
-              Alert.alert('Reset Complete', 'Demo datasets have been reset successfully!');
+              await apiClient.post('/admin/demo/reset');
+              Alert.alert('Reset Complete', 'Demo datasets have been reset successfully to clean initial state!');
             } catch (err) {
               Alert.alert('Reset Failed', getErrorMessage(err));
             } finally {

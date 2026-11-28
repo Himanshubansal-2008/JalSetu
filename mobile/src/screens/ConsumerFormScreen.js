@@ -1,6 +1,6 @@
 /**
  * ConsumerFormScreen.js
- * Reusable Add / Edit Consumer form screen in the JalKosh mobile app.
+ * Reusable Add / Edit Consumer form screen in the JalSetu mobile app.
  *
  * Supports:
  * - Create Mode: Adds new consumer with name, houseNumber, phone, monthlyChargePaise

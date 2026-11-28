@@ -1,6 +1,6 @@
 /**
  * MonthlySummaryScreen.js
- * Category-wise Income and Expense breakdown screen for the JalKosh mobile app.
+ * Category-wise Income and Expense breakdown screen for the JalSetu mobile app.
  * Features:
  * - Month picker header with previous / next month arrows (< / >)
  * - Top Month Totals banner (Total Income, Total Expense, Net Month Balance)

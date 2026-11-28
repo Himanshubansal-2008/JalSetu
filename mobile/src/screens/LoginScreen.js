@@ -27,7 +27,6 @@ export default function LoginScreen({ navigation }) {
 
   // Demo Login states
   const [demoRoleLoading, setDemoRoleLoading] = useState(null); // 'main_admin' | 'admin' | 'worker' | null
-  const [resetData, setResetData] = useState(false);
 
   const login = useAuthStore((state) => state.login);
   const demoLogin = useAuthStore((state) => state.demoLogin);
@@ -75,7 +74,7 @@ export default function LoginScreen({ navigation }) {
     setDemoRoleLoading(role);
 
     try {
-      await demoLogin({ role, resetData });
+      await demoLogin({ role });
       // Navigation switches automatically via zustand user state change in RootNavigator
     } catch (err) {
       setApiError(getErrorMessage(err));
@@ -222,24 +221,6 @@ export default function LoginScreen({ navigation }) {
               {demoRoleLoading === 'worker' ? 'Logging in Worker...' : (strings.demoWorkerLogin || 'Demo Worker')}
             </Text>
           </TouchableOpacity>
-
-          {/* Reset Demo Data Toggle */}
-          <TouchableOpacity
-            style={styles.resetDataRow}
-            onPress={() => setResetData(!resetData)}
-            disabled={isAnyLoading}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name={resetData ? 'checkbox' : 'square-outline'}
-              size={18}
-              color={resetData ? colors.primary : colors.muted}
-              style={{ marginRight: 8 }}
-            />
-            <Text style={[styles.resetDataText, resetData && { color: colors.primary, fontWeight: '600' }]}>
-              {strings.resetDemoDataToggle || 'Reset demo data before login'}
-            </Text>
-          </TouchableOpacity>
         </View>
 
         <TouchableOpacity
@@ -376,17 +357,6 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 15,
     fontWeight: '700',
-  },
-  resetDataRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 6,
-    marginTop: 4,
-  },
-  resetDataText: {
-    fontSize: 13,
-    color: colors.muted,
   },
   disabledButton: {
     opacity: 0.5,

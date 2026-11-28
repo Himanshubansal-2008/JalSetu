@@ -1,6 +1,6 @@
 /**
  * workerController.js
- * Admin-only Worker Management controller for JalKosh.
+ * Admin-only Worker Management controller for JalSetu.
  *
  * Scoped strictly to the authenticated admin's Gram Panchayat (gpId = req.user.gpId).
  * Allows listing, creating, and toggling active status of GP workers.

@@ -1,6 +1,6 @@
 /**
  * seed.js
- * Idempotent database seed script for JalKosh Gram Panchayat O&M system.
+ * Idempotent database seed script for JalSetu Gram Panchayat O&M system.
  * Delegates to reusable seedDemoGp utility.
  */
 
@@ -11,7 +11,7 @@ const { seedDemoGp } = require('../src/utils/demoSeed');
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Starting JalKosh Database Seed (forceReset: true)...\n');
+  console.log('🌱 Starting JalSetu Database Seed (forceReset: true)...\n');
   const { gp, adminUser, workerUser, mainAdminUser } = await seedDemoGp(prisma, { forceReset: true });
 
   const totalAssetsCount = await prisma.asset.count({ where: { gpId: gp.id } });
@@ -25,15 +25,16 @@ async function main() {
   const totalInventoryCount = await prisma.inventoryItem.count({ where: { gpId: gp.id } });
 
   console.log('================================================================');
-  console.log('🎉 JalKosh Demo Dataset Seeded Successfully!');
+  console.log('🎉 JalSetu Demo Dataset Seeded Successfully!');
   console.log('================================================================');
   console.log(`Gram Panchayat : ${gp.name} (ID: ${gp.id})`);
   console.log(`Location       : ${gp.village}, ${gp.district}, ${gp.state}`);
   console.log('----------------------------------------------------------------');
-  console.log('Credentials for Demo / Testing:');
-  console.log(`  Main Admin   : Phone ${mainAdminUser?.phone || '9992934154'}  |  Password: Admin@123  (Role: main_admin)`);
-  console.log(`  GP Admin     : Phone ${adminUser.phone}  |  Password: Admin@123  (Role: admin - Sarpanch)`);
-  console.log(`  Worker User  : Phone ${workerUser.phone}  |  Password: Worker@123  (Role: worker)`);
+  console.log('Accounts Configured for Demo / Testing:');
+  console.log(`  Main Admin   : Phone ${mainAdminUser?.phone || '9992934154'}  (Role: main_admin - Super Admin)`);
+  console.log(`  GP Admin     : Phone ${adminUser.phone}  (Role: admin - Sarpanch)`);
+  console.log(`  Worker User  : Phone ${workerUser.phone}  (Role: worker)`);
+  console.log('  * Access via 1-tap demo buttons on mobile login (no passwords required for demo accounts)');
   console.log('----------------------------------------------------------------');
   console.log('Seeded Dataset Counts:');
   console.log(`  GIS Assets   : ${totalAssetsCount} (${faultyAssetsCount} faulty, ${repairAssetsCount} under repair)`);

@@ -1,6 +1,6 @@
 /**
  * PayBillModal.js
- * Modal component for recording consumer bill payments in the JalKosh mobile app.
+ * Modal component for recording consumer bill payments in the JalSetu mobile app.
  *
  * Features:
  * - Bill Summary Header: Consumer name, house number, billing month, and formatted amount
